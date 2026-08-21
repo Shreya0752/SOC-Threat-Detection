@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOC ThreatDetect AI — Security Operations Dashboard</title>
+  <link rel="stylesheet" href="/assets/index.css">
+
+  <!-- React & Babel Standalone CDN for instant in-browser execution -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const API_BASE = window.location.origin.includes("5000")
+      ? window.location.origin
+      : "http://127.0.0.1:5000";
+
+    // AUTH & API SERVICE
+    const apiLogin = async (username, password) => {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid username or password");
+      }
+      return data;
+    };
+
+    const apiLogout = async () => {
+      try {
+        await fetch(`${API_BASE}/logout`, {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/me`, { credentials: "include" });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.user;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const fetchEvents = async (params = {}) => {
+      try {
+        const query = new URLSearchParams();
+        if (params.severity && params.severity !== "All") query.append("severity", params.severity);
+        if (params.date) query.append("date", params.date);
+        if (params.eventType && params.eventType !== "All") query.append("event_type", params.eventType);
+        if (params.ipAddress) query.append("ip_address", params.ipAddress);
+        if (params.search) query.append("search", params.search);
+        if (params.page) query.append("page", params.page);
+        if (params.limit) query.append("limit", params.limit || 25);
+
+        const res = await fetch(`${API_BASE}/events?${query.toString()}`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return { total: 0, events: [] };
+      }
+    };
+
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/stats`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return { total_events: 0, critical_events: 0, high_events: 0, medium_events: 0, low_events: 0, vulnerabilities: 0, active_incidents: 0 };
+      }
+    };
+
+    const fetchThreats = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/threats`, { credentials: "include" });
+        if (res.status === 401) return [];
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return [];
+      }
+    };
+
+    // MILESTONE 2 REST API SERVICES
+    const fetchPredictions = async (params = {}) => {
+      try {
+        const query = new URLSearchParams();
+        if (params.page) query.append("page", params.page);
+        if (params.limit) query.append("limit", params.limit || 25);
+        if (params.prediction && params.prediction !== "All") query.append("prediction", params.prediction);
+        if (params.threat_type && params.threat_type !== "All") query.append("threat_type", params.threat_type);
+        if (params.severity && params.severity !== "All") query.append("severity", params.severity);
+        if (params.search) query.append("search", params.search);
+
+        const res = await fetch(`${API_BASE}/predictions?${query.toString()}`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return { total: 0, predictions: [] };
+      }
+    };
+
+    const fetchPredictionByEventId = async (eventId) => {
+      try {
+        const res = await fetch(`${API_BASE}/predictions/${encodeURIComponent(eventId)}`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const fetchAnomalies = async (params = {}) => {
+      try {
+        const query = new URLSearchParams();
+        if (params.page) query.append("page", params.page);
+        if (params.limit) query.append("limit", params.limit || 25);
+
+        const res = await fetch(`${API_BASE}/anomalies?${query.toString()}`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return { total: 0, anomalies: [] };
+      }
+    };
+
+    const fetchModelPerformance = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/model-performance`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return { error: error.message };
+      }
+    };
+
+    const fetchThreatSummary = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/threat-summary`, { credentials: "include" });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
+      } catch (error) {
+        return { error: error.message };
+      }
+    };
+
+    const predictEvent = async (eventId) => {
+      try {
+        const res = await fetch(`${API_BASE}/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ event_id: eventId })
+        });
+        if (res.status === 401) return { unauthorized: true };
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || `HTTP error! status: ${res.status}`);
+        }
+        return await res.json();
+      } catch (error) {
+        return { error: error.message };
+      }
+    };
+
+    // COMPONENTS
+
+    function Login({ onLoginSuccess }) {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [showPassword, setShowPassword] = useState(false);
+      const [errorMsg, setErrorMsg] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setErrorMsg('');
+
+        if (!username.trim()) {
+          setErrorMsg('Please enter your username.');
+          return;
+        }
+        if (!password.trim()) {
+          setErrorMsg('Please enter your password.');
+          return;
+        }
+
+        setIsLoading(true);
+
+        try {
+          const res = await apiLogin(username.trim(), password.trim());
+          if (res && res.user) {
+            onLoginSuccess(res.user);
+          }
+        } catch (err) {
+          setErrorMsg(err.message || 'Invalid username or password.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      return (
+        <div className="login-container">
+          <div className="login-card">
+            <div className="login-logo"><span style={{ fontSize: '1.8rem' }}>🛡️</span></div>
+            <h2 className="login-title">SOC ThreatDetect AI</h2>
+            <p className="login-subtitle">Security Operations Center — Data Aggregation & Intel Console</p>
+
+            {errorMsg && (
+              <div style={{
+                background: '#FEE2E2',
+                border: '1px solid #FCA5A5',
+                color: '#DC2626',
+                padding: '0.65rem 0.85rem',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                marginBottom: '1rem',
+                textAlign: 'left'
+              }}>
+                {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="login-form">
+              <div className="form-group">
+                <label className="form-label">Analyst Username</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  disabled={isLoading}
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Security Key / Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="form-input"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={isLoading}
+                    style={{ paddingRight: '2.5rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: '#F1F5F9',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '4px',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                      padding: '0.2rem 0.5rem'
+                    }}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="login-submit-btn"
+                disabled={isLoading}
+                style={{ opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+              >
+                {isLoading ? 'Authenticating...' : 'Access SOC Console'}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    function Sidebar({ activeTab, setActiveTab }) {
+      const navItems = [
+        { id: 'overview', label: 'Overview', icon: '📊' },
+        { id: 'ai-detection', label: 'AI Threat Detection', icon: '🤖' },
+        { id: 'events', label: 'Security Events', icon: '🛡️' },
+        { id: 'threats', label: 'Threat Intelligence', icon: '⚠️' },
+        { id: 'vulnerabilities', label: 'Vulnerabilities', icon: '🔍' },
+        { id: 'analytics', label: 'Analytics', icon: '📈' }
+      ];
+      return (
+        <div className="sidebar">
+          <div className="sidebar-logo">
+            <div className="sidebar-logo-icon">SOC</div>
+            <div>
+              <div className="sidebar-logo-text">ThreatDetect AI</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748B' }}>SOC Security Console</div>
+            </div>
+          </div>
+          <nav className="sidebar-nav">
+            {navItems.map(item => (
+              <button key={item.id} className={`nav-item ${activeTab === item.id ? 'active' : ''}`} onClick={() => setActiveTab(item.id)}>
+                <span>{item.icon}</span><span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748B' }}>SOC Threat Intelligence</div>
+            <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 500, marginTop: '0.2rem' }}>Data Aggregation & Intel</div>
+          </div>
+        </div>
+      );
+    }
+
+    function Header({ activeTab, onRefresh, pollingInterval, setPollingInterval, user, onLogout }) {
+      const titles = {
+        overview: 'SOC Security Overview',
+        'ai-detection': 'AI Threat Detection & Anomaly Analysis Engine',
+        events: 'Security Event Logs',
+        threats: 'Threat Intelligence Feeds & Matches',
+        vulnerabilities: 'Vulnerability Analysis',
+        analytics: 'Analytics & MITRE ATT&CK Mapping'
+      };
+      return (
+        <header className="top-header">
+          <div className="header-title"><span>{titles[activeTab] || 'Dashboard'}</span></div>
+          <div className="header-controls">
+            <div className="live-indicator">
+              <div className="pulse-dot"></div>
+              <span>API Connected ({pollingInterval ? `${pollingInterval / 1000}s` : 'Off'})</span>
+            </div>
+            <select className="filter-select" value={pollingInterval} onChange={e => setPollingInterval(Number(e.target.value))}>
+              <option value={5000}>Auto 5s</option>
+              <option value={10000}>Auto 10s</option>
+              <option value={30000}>Auto 30s</option>
+              <option value={0}>Manual Only</option>
+            </select>
+            <button className="refresh-btn" onClick={onRefresh}>🔄 Refresh</button>
+            <div className="user-profile">
+              <div className="user-avatar">{user?.username ? user.username[0].toUpperCase() : 'A'}</div>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0F172A' }}>{user?.username || 'SOC Analyst'}</div>
+                <div style={{ fontSize: '0.7rem', color: '#64748B' }}>{user?.role || 'Tier 2 Security Analyst'}</div>
+              </div>
+              <button onClick={onLogout} style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', color: '#475569', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.75rem', cursor: 'pointer', marginLeft: '0.5rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>Logout</button>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    function KPICards({ stats }) {
+      const cards = [
+        { title: 'Total Events', value: stats?.total_events ?? '...', subtext: `${stats?.cleaning_stats?.rows_before_cleaning || stats?.total_events || 0} Raw Logs Ingested`, icon: '🛡️', color: '#2563EB', bg: '#DBEAFE' },
+        { title: 'Critical Threats', value: stats?.critical_events ?? '...', subtext: 'Critical Severity Events', icon: '🚨', color: '#DC2626', bg: '#FEE2E2' },
+        { title: 'High Severity Alerts', value: stats?.high_events ?? '...', subtext: 'High Risk Events', icon: '⚠️', color: '#EA580C', bg: '#FFEDD5' },
+        { title: 'Vulnerabilities', value: stats?.vulnerabilities ?? '...', subtext: 'Vulnerability-Tracked Events', icon: '🔍', color: '#D97706', bg: '#FEF3C7' },
+        { title: 'Active Incidents', value: stats?.active_incidents ?? '...', subtext: 'Open Security Tickets', icon: '⚡', color: '#0D9488', bg: '#CCFBF1' }
+      ];
+      return (
+        <div className="kpi-grid">
+          {cards.map((card, idx) => (
+            <div key={idx} className="kpi-card">
+              <div className="kpi-header">
+                <span className="kpi-title">{card.title}</span>
+                <div className="kpi-icon" style={{ backgroundColor: card.bg, color: card.color }}><span>{card.icon}</span></div>
+              </div>
+              <div className="kpi-value">{card.value}</div>
+              <div className="kpi-subtext">{card.subtext}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function Filters({ filters, setFilters, eventTypes }) {
+      return (
+        <div className="filter-bar">
+          <div className="filter-group">
+            <span className="filter-label">Severity:</span>
+            <select className="filter-select" value={filters.severity} onChange={e => setFilters({ ...filters, severity: e.target.value })}>
+              <option value="All">All Severities</option>
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <span className="filter-label">Date:</span>
+            <input type="date" className="filter-input" value={filters.date} onChange={e => setFilters({ ...filters, date: e.target.value })} />
+          </div>
+          <div className="filter-group">
+            <span className="filter-label">Event Type:</span>
+            <select className="filter-select" value={filters.eventType} onChange={e => setFilters({ ...filters, eventType: e.target.value })}>
+              <option value="All">All Event Types</option>
+              {eventTypes.map((type, idx) => <option key={idx} value={type}>{type}</option>)}
+            </select>
+          </div>
+          <div className="filter-group">
+            <span className="filter-label">IP Address:</span>
+            <input type="text" placeholder="Filter by IP..." className="filter-input" value={filters.ipAddress} onChange={e => setFilters({ ...filters, ipAddress: e.target.value })} />
+          </div>
+          <div className="filter-group">
+            <span className="filter-label">Search:</span>
+            <input type="text" placeholder="User / Device / ID..." className="filter-input" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} />
+          </div>
+          <button className="refresh-btn" style={{ marginLeft: 'auto' }} onClick={() => setFilters({ severity: 'All', date: '', eventType: 'All', ipAddress: '', search: '' })}>Clear Filters</button>
+        </div>
+      );
+    }
+
+    function ThreatDistributionChart({ stats }) {
+      const critical = stats?.critical_events || 0;
+      const high = stats?.high_events || 0;
+      const medium = stats?.medium_events || 0;
+      const low = stats?.low_events || 0;
+      const total = critical + high + medium + low || 1;
+
+      const items = [
+        { label: 'Critical', count: critical, color: '#DC2626', pct: ((critical / total) * 100).toFixed(1) },
+        { label: 'High', count: high, color: '#EA580C', pct: ((high / total) * 100).toFixed(1) },
+        { label: 'Medium', count: medium, color: '#D97706', pct: ((medium / total) * 100).toFixed(1) },
+        { label: 'Low', count: low, color: '#2563EB', pct: ((low / total) * 100).toFixed(1) }
+      ];
+
+      let cumulativeAngle = 0;
+      const radius = 60;
+      const circumference = 2 * Math.PI * radius;
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Severity Distribution</h3>
+            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Pie / Donut Chart</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '1rem', padding: '0.5rem 0' }}>
+            <div style={{ position: 'relative', width: '160px', height: '160px' }}>
+              <svg width="160" height="160" viewBox="0 0 160 160">
+                <g transform="rotate(-90 80 80)">
+                  {items.map((item, idx) => {
+                    const strokeDasharray = `${(item.count / total) * circumference} ${circumference}`;
+                    const strokeDashoffset = -cumulativeAngle;
+                    cumulativeAngle += (item.count / total) * circumference;
+                    return (
+                      <circle key={idx} cx="80" cy="80" r={radius} fill="transparent" stroke={item.color} strokeWidth={24} strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} />
+                    );
+                  })}
+                </g>
+              </svg>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0F172A' }}>{total}</div>
+                <div style={{ fontSize: '0.65rem', color: '#64748B', textTransform: 'uppercase' }}>Total</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '140px' }}>
+              {items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: item.color }} />
+                    <span style={{ color: '#0F172A', fontWeight: 500 }}>{item.label}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 700, color: '#0F172A', marginRight: '0.4rem' }}>{item.count}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>({item.pct}%)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function EventTrendGraph({ events }) {
+      const timeCounts = {};
+      events.forEach(evt => {
+        const timeKey = evt.timestamp ? evt.timestamp.substring(11, 13) + ':00' : '00:00';
+        timeCounts[timeKey] = (timeCounts[timeKey] || 0) + 1;
+      });
+
+      const sortedHours = Object.keys(timeCounts).sort();
+      const dataPoints = sortedHours.length > 0 ? sortedHours.map(h => ({ time: h, count: timeCounts[h] })) : [
+        { time: '00:00', count: 15 }, { time: '04:00', count: 28 }, { time: '08:00', count: 45 },
+        { time: '12:00', count: 62 }, { time: '16:00', count: 39 }, { time: '20:00', count: 21 }
+      ];
+
+      const maxVal = Math.max(...dataPoints.map(d => d.count), 1);
+      const width = 500;
+      const height = 140;
+      const padding = 20;
+
+      const points = dataPoints.map((d, idx) => {
+        const x = padding + (idx / Math.max(dataPoints.length - 1, 1)) * (width - 2 * padding);
+        const y = height - padding - (d.count / maxVal) * (height - 2 * padding);
+        return `${x},${y}`;
+      }).join(' ');
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Event Trend Over Time</h3>
+            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Line Graph (Events / Hour)</span>
+          </div>
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+              <defs>
+                <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#E2E8F0" strokeWidth="1" />
+              {dataPoints.length > 1 && (
+                <polygon points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`} fill="url(#lineGrad)" />
+              )}
+              <polyline fill="none" stroke="#3B82F6" strokeWidth="3" points={points} strokeLinecap="round" />
+              {dataPoints.map((d, idx) => {
+                const x = padding + (idx / Math.max(dataPoints.length - 1, 1)) * (width - 2 * padding);
+                const y = height - padding - (d.count / maxVal) * (height - 2 * padding);
+                return (
+                  <g key={idx}>
+                    <circle cx={x} cy={y} r="4" fill="#3B82F6" stroke="#FFFFFF" strokeWidth="1.5" />
+                    <text x={x} y={height - 5} fill="#64748B" fontSize="10" textAnchor="middle">{d.time}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    function TopAttackTypes({ threats }) {
+      const [hoveredIdx, setHoveredIdx] = useState(null);
+
+      const data = threats && threats.length > 0 ? threats.slice(0, 6) : [
+        { event_type: 'File Access', count: 198 },
+        { event_type: 'Sql Injection Attempt', count: 195 },
+        { event_type: 'Privilege Escalation', count: 191 },
+        { event_type: 'Brute Force', count: 189 },
+        { event_type: 'Failed Login', count: 179 },
+        { event_type: 'Login Success', count: 179 }
+      ];
+
+      const maxCount = Math.max(...data.map(d => d.count), 1);
+      const step = 50;
+      const maxScale = Math.ceil((maxCount * 1.1) / step) * step || 250;
+
+      const ticks = [];
+      for (let val = 0; val <= maxScale; val += step) {
+        ticks.push(val);
+      }
+
+      const svgWidth = 700;
+      const svgHeight = 280;
+      const leftMargin = 175;
+      const rightMargin = 60;
+      const topMargin = 25;
+      const bottomMargin = 45;
+
+      const chartWidth = svgWidth - leftMargin - rightMargin;
+      const chartHeight = svgHeight - topMargin - bottomMargin;
+      const slotHeight = chartHeight / Math.max(data.length, 1);
+      const barHeight = 20;
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Top Security Event Types</h3>
+            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Horizontal Bar Chart</span>
+          </div>
+
+          <div style={{ position: 'relative', width: '100%', overflowX: 'auto', marginTop: '0.5rem' }}>
+            <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+              <defs>
+                <linearGradient id="svgBarGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#3B82F6" />
+                  <stop offset="100%" stopColor="#38BDF8" />
+                </linearGradient>
+                <linearGradient id="svgBarGradHover" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#2563EB" />
+                  <stop offset="100%" stopColor="#0284C7" />
+                </linearGradient>
+              </defs>
+
+              <text x="15" y="16" fontSize="11" fontWeight="600" fill="#64748B">Event Type</text>
+
+              {ticks.map((tickVal, idx) => {
+                const xPos = leftMargin + (tickVal / maxScale) * chartWidth;
+                return (
+                  <g key={`grid-tick-${idx}`}>
+                    <line
+                      x1={xPos}
+                      y1={topMargin}
+                      x2={xPos}
+                      y2={topMargin + chartHeight}
+                      stroke="#E2E8F0"
+                      strokeWidth="1"
+                      strokeDasharray={tickVal === 0 ? "none" : "3 3"}
+                    />
+                    <text
+                      x={xPos}
+                      y={topMargin + chartHeight + 18}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fill="#64748B"
+                      fontFamily="Inter, system-ui, sans-serif"
+                    >
+                      {tickVal}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {data.map((item, idx) => {
+                const yCenter = topMargin + idx * slotHeight + slotHeight / 2;
+                const barY = yCenter - barHeight / 2;
+                const barLength = (item.count / maxScale) * chartWidth;
+                const isHovered = hoveredIdx === idx;
+
+                return (
+                  <g
+                    key={`bar-group-${idx}`}
+                    onMouseEnter={() => setHoveredIdx(idx)}
+                    onMouseLeave={() => setHoveredIdx(null)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <text
+                      x={leftMargin - 12}
+                      y={barY + barHeight / 2 + 4}
+                      textAnchor="end"
+                      fontSize="12"
+                      fontWeight={isHovered ? "700" : "500"}
+                      fill={isHovered ? "#2563EB" : "#0F172A"}
+                      fontFamily="Inter, system-ui, sans-serif"
+                    >
+                      {item.event_type}
+                    </text>
+
+                    <rect
+                      x={leftMargin}
+                      y={barY}
+                      width={chartWidth}
+                      height={barHeight}
+                      fill="#F8FAFC"
+                      rx="4"
+                    />
+
+                    <rect
+                      x={leftMargin}
+                      y={barY}
+                      width={Math.max(barLength, 4)}
+                      height={barHeight}
+                      fill={isHovered ? "url(#svgBarGradHover)" : "url(#svgBarGrad)"}
+                      rx="4"
+                      style={{ transition: 'all 0.3s ease-in-out' }}
+                    />
+
+                    <text
+                      x={leftMargin + barLength + 8}
+                      y={barY + barHeight / 2 + 4}
+                      fontSize="12"
+                      fontWeight="700"
+                      fill={isHovered ? "#1D4ED8" : "#2563EB"}
+                      fontFamily="Inter, system-ui, sans-serif"
+                    >
+                      {item.count}
+                    </text>
+
+                    <title>{`${item.event_type}: ${item.count} events`}</title>
+                  </g>
+                );
+              })}
+
+              <line
+                x1={leftMargin}
+                y1={topMargin}
+                x2={leftMargin}
+                y2={topMargin + chartHeight}
+                stroke="#94A3B8"
+                strokeWidth="1.5"
+              />
+
+              <line
+                x1={leftMargin}
+                y1={topMargin + chartHeight}
+                x2={leftMargin + chartWidth}
+                y2={topMargin + chartHeight}
+                stroke="#94A3B8"
+                strokeWidth="1.5"
+              />
+
+              <text
+                x={leftMargin + chartWidth / 2}
+                y={topMargin + chartHeight + 38}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="600"
+                fill="#64748B"
+                fontFamily="Inter, system-ui, sans-serif"
+              >
+                Number of Events
+              </text>
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    function EventTable({ events, total, page, setPage, limit, loading }) {
+      const [selectedEvent, setSelectedEvent] = useState(null);
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      return (
+        <div className="table-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Security Event Logs</h3>
+            <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Showing {events.length} of {total} events</span>
+          </div>
+          <div className="table-wrapper">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Event Type</th>
+                  <th>Severity</th>
+                  <th>Source IP</th>
+                  <th>Status</th>
+                  <th>User</th>
+                  <th>MITRE ATT&CK</th>
+                  <th>Threat Match</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>Loading security events...</td></tr>
+                ) : events.length === 0 ? (
+                  <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>No matching events found.</td></tr>
+                ) : (
+                  events.map(evt => (
+                    <tr key={evt.id || evt.event_id}>
+                      <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', color: '#475569' }}>{evt.timestamp}</td>
+                      <td style={{ fontWeight: 600, color: '#0F172A' }}>{evt.event_type}</td>
+                      <td>
+                        <span className={`badge badge-${(evt.severity || 'low').toLowerCase()}`}>
+                          {evt.severity}
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: 'JetBrains Mono, monospace', color: '#2563EB' }}>{evt.source_ip}</td>
+                      <td>
+                        <span style={{ color: evt.status?.toLowerCase() === 'blocked' ? '#DC2626' : evt.status?.toLowerCase() === 'detected' ? '#EA580C' : '#059669', fontWeight: 500 }}>
+                          {evt.status}
+                        </span>
+                      </td>
+                      <td style={{ color: '#0F172A' }}>{evt.username || 'N/A'}</td>
+                      <td>
+                        {evt.mitre_id && evt.mitre_id !== 'Unknown' ? (
+                          <span style={{ color: '#0284C7', fontSize: '0.8rem', fontWeight: 600 }}>{evt.mitre_id} ({evt.technique_name})</span>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontSize: '0.8rem' }}>Unmapped</span>
+                        )}
+                      </td>
+                      <td>
+                        {evt.threat_match ? (
+                          <span className="badge badge-critical">Matched</span>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontSize: '0.8rem' }}>No Match</span>
+                        )}
+                      </td>
+                      <td>
+                        <button onClick={() => setSelectedEvent(evt)} style={{ background: '#EFF6FF', border: '1px solid #DBEAFE', color: '#2563EB', borderRadius: '6px', padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                          Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="pagination">
+            <span>Page {page} of {totalPages}</span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="page-btn" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>Previous</button>
+              <button className="page-btn" disabled={page >= totalPages || loading} onClick={() => setPage(page + 1)}>Next</button>
+            </div>
+          </div>
+
+          {selectedEvent && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+              <div style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '16px', width: '90vw', maxWidth: '750px', maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem', color: '#0F172A', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                <div style={{ position: 'sticky', top: 0, background: '#FFFFFF', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0F172A', margin: 0 }}>Event Details: {selectedEvent.event_id}</h3>
+                  <button onClick={() => setSelectedEvent(null)} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: '#475569', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.85rem' }}>
+                  <div><strong>Timestamp:</strong> {selectedEvent.timestamp}</div>
+                  <div><strong>Event Type:</strong> {selectedEvent.event_type}</div>
+                  <div><strong>Severity:</strong> {selectedEvent.severity}</div>
+                  <div><strong>Status:</strong> {selectedEvent.status}</div>
+                  <div><strong>Source IP:</strong> {selectedEvent.source_ip}</div>
+                  <div><strong>Destination IP:</strong> {selectedEvent.destination_ip}</div>
+                  <div><strong>Username:</strong> {selectedEvent.username}</div>
+                  <div><strong>Device:</strong> {selectedEvent.device_name} ({selectedEvent.os})</div>
+                  <div><strong>MITRE ID:</strong> {selectedEvent.mitre_id} ({selectedEvent.technique_name})</div>
+                  <div><strong>MITRE Tactic:</strong> {selectedEvent.tactic}</div>
+                  <div><strong>Threat Indicator:</strong> {selectedEvent.threat_indicator ? 'Yes' : 'No'}</div>
+                  <div><strong>Threat Name:</strong> {selectedEvent.threat_name}</div>
+                </div>
+                {selectedEvent.engineered_features && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0' }}>
+                    <h4 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: '#2563EB' }}>Engineered Features</h4>
+                    <pre style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.75rem', borderRadius: '8px', fontSize: '0.75rem', color: '#334155', overflowX: 'auto' }}>
+                      {JSON.stringify(selectedEvent.engineered_features, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function M2KPICards({ summary, loading, error }) {
+      const total = summary?.total_predictions || 0;
+      const anomalous = summary?.anomalous || 0;
+      const normal = summary?.normal || 0;
+      const high = summary?.threat_levels?.High || 0;
+      const critical = summary?.threat_levels?.Critical || 0;
+
+      const cards = [
+        { title: 'Total Events', value: total, subtitle: 'Scanned Security Logs', color: '#2563EB', icon: '⚡' },
+        { title: 'Anomalies Detected', value: anomalous, subtitle: `${summary?.anomaly_percentage || 0}% Anomaly Rate`, color: '#DC2626', icon: '🚨' },
+        { title: 'Normal Events', value: normal, subtitle: 'Baseline Activity', color: '#16A34A', icon: '✅' },
+        { title: 'High-Risk Events', value: high, subtitle: 'High Severity Threat Level', color: '#EA580C', icon: '⚠️' },
+        { title: 'Critical Threats', value: critical, subtitle: 'Critical Severity Threat Level', color: '#9333EA', icon: '🔥' }
+      ];
+
+      if (loading) {
+        return (
+          <div className="kpi-grid">
+            {[1, 2, 3, 4, 5].map(idx => (
+              <div key={idx} className="kpi-card" style={{ opacity: 0.6 }}>
+                <div style={{ fontSize: '0.85rem', color: '#64748B' }}>Loading metric...</div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div className="chart-card" style={{ borderLeft: '4px solid #EF4444', marginBottom: '1rem' }}>
+            <div style={{ color: '#DC2626', fontWeight: 600 }}>Error loading AI Summary KPIs</div>
+            <div style={{ fontSize: '0.85rem', color: '#64748B', marginTop: '0.2rem' }}>{error}</div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+          {cards.map((c, idx) => (
+            <div key={idx} className="kpi-card" style={{ borderLeft: `4px solid ${c.color}` }}>
+              <div className="kpi-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{c.title}</span>
+                <span style={{ fontSize: '1.1rem' }}>{c.icon}</span>
+              </div>
+              <div className="kpi-value" style={{ color: c.color }}>{c.value.toLocaleString()}</div>
+              <div className="kpi-subtext">{c.subtitle}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function AnomalyChart({ summary }) {
+      const normal = summary?.normal || 0;
+      const anomalous = summary?.anomalous || 0;
+      const total = summary?.total_predictions || normal + anomalous || 1;
+
+      const items = [
+        { label: 'Normal', count: normal, color: '#16A34A', pct: ((normal / total) * 100).toFixed(1) },
+        { label: 'Anomalous', count: anomalous, color: '#DC2626', pct: ((anomalous / total) * 100).toFixed(1) }
+      ];
+
+      let cumulativeAngle = 0;
+      const radius = 60;
+      const strokeWidth = 24;
+      const circumference = 2 * Math.PI * radius;
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Anomaly Distribution</h3>
+            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Isolation Forest Output</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '1rem', padding: '0.5rem 0' }}>
+            <div style={{ position: 'relative', width: '160px', height: '160px' }}>
+              <svg width="160" height="160" viewBox="0 0 160 160">
+                <g transform="rotate(-90 80 80)">
+                  {items.map((item, idx) => {
+                    const strokeDasharray = `${(item.count / total) * circumference} ${circumference}`;
+                    const strokeDashoffset = -cumulativeAngle;
+                    cumulativeAngle += (item.count / total) * circumference;
+                    return (
+                      <circle key={idx} cx="80" cy="80" r={radius} fill="transparent" stroke={item.color} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} style={{ transition: 'all 0.5s ease' }} />
+                    );
+                  })}
+                </g>
+              </svg>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0F172A' }}>{total}</div>
+                <div style={{ fontSize: '0.65rem', color: '#64748B', textTransform: 'uppercase' }}>Total Events</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, minWidth: '140px' }}>
+              {items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: item.color }} />
+                    <span style={{ color: '#0F172A', fontWeight: 600 }}>{item.label}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 700, color: '#0F172A', marginRight: '0.4rem' }}>{item.count.toLocaleString()}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>({item.pct}%)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ThreatTrendChart({ anomalies = [] }) {
+      const timeCounts = {};
+      if (anomalies && anomalies.length > 0) {
+        anomalies.forEach(item => {
+          const timeStr = item.event_timestamp || item.prediction_timestamp || "";
+          const timeKey = timeStr.length >= 13 ? timeStr.substring(11, 13) + ":00" : "00:00";
+          timeCounts[timeKey] = (timeCounts[timeKey] || 0) + 1;
+        });
+      }
+
+      const sortedHours = Object.keys(timeCounts).sort();
+      const dataPoints = sortedHours.length > 0 ? sortedHours.map(h => ({ time: h, count: timeCounts[h] })) : [
+        { time: '00:00', count: 12 }, { time: '04:00', count: 25 }, { time: '08:00', count: 48 },
+        { time: '12:00', count: 65 }, { time: '16:00', count: 42 }, { time: '20:00', count: 28 }
+      ];
+
+      const maxVal = Math.max(...dataPoints.map(d => d.count), 1);
+      const width = 500;
+      const height = 140;
+      const padding = 25;
+
+      const points = dataPoints.map((d, idx) => {
+        const x = padding + (idx / Math.max(dataPoints.length - 1, 1)) * (width - 2 * padding);
+        const y = height - padding - (d.count / maxVal) * (height - 2 * padding);
+        return `${x},${y}`;
+      }).join(' ');
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Threat Trend (Anomalies Over Time)</h3>
+            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Native Line Chart</span>
+          </div>
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+              <defs>
+                <linearGradient id="anomLineGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#DC2626" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#EF4444" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#E2E8F0" strokeWidth="1" />
+              <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#E2E8F0" strokeWidth="1" strokeDasharray="4 4" />
+              {dataPoints.length > 1 && (
+                <polygon points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`} fill="url(#anomLineGrad)" />
+              )}
+              <polyline fill="none" stroke="#DC2626" strokeWidth="3" points={points} strokeLinecap="round" />
+              {dataPoints.map((d, idx) => {
+                const x = padding + (idx / Math.max(dataPoints.length - 1, 1)) * (width - 2 * padding);
+                const y = height - padding - (d.count / maxVal) * (height - 2 * padding);
+                return (
+                  <g key={idx}>
+                    <circle cx={x} cy={y} r="4" fill="#DC2626" stroke="#FFFFFF" strokeWidth="1.5" />
+                    <text x={x} y={height - 5} fill="#64748B" fontSize="10" textAnchor="middle">{d.time}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    function ThreatTypeChart({ threatTypes = {} }) {
+      const [hoveredIdx, setHoveredIdx] = useState(null);
+
+      const entries = Object.entries(threatTypes || {});
+      const data = entries.length > 0
+        ? entries.map(([type, count]) => ({ threat_type: type, count })).sort((a, b) => b.count - a.count)
+        : [
+            { threat_type: 'Brute Force', count: 429 },
+            { threat_type: 'Normal Activity', count: 349 },
+            { threat_type: 'Anomalous Activity', count: 314 },
+            { threat_type: 'SQL Injection', count: 195 },
+            { threat_type: 'Privilege Escalation', count: 191 },
+            { threat_type: 'Malware', count: 165 },
+            { threat_type: 'Phishing', count: 157 }
+          ];
+
+      const maxCount = Math.max(...data.map(d => d.count), 1);
+      const step = 100;
+      const maxScale = Math.ceil((maxCount * 1.1) / step) * step || 500;
+
+      const ticks = [];
+      for (let val = 0; val <= maxScale; val += step) {
+        ticks.push(val);
+      }
+
+      const svgWidth = 700;
+      const svgHeight = Math.max(260, data.length * 36 + 60);
+      const leftMargin = 175;
+      const rightMargin = 60;
+      const topMargin = 25;
+      const bottomMargin = 45;
+
+      const chartWidth = svgWidth - leftMargin - rightMargin;
+      const chartHeight = svgHeight - topMargin - bottomMargin;
+      const slotHeight = chartHeight / Math.max(data.length, 1);
+      const barHeight = 20;
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3 className="chart-title">Top Threat Types</h3>
+            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Native Horizontal Bar Chart</span>
+          </div>
+
+          <div style={{ position: 'relative', width: '100%', overflowX: 'auto', marginTop: '0.5rem' }}>
+            <svg width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+              <defs>
+                <linearGradient id="ttBarGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#DC2626" />
+                  <stop offset="100%" stopColor="#F87171" />
+                </linearGradient>
+                <linearGradient id="ttBarGradHover" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#B91C1C" />
+                  <stop offset="100%" stopColor="#EF4444" />
+                </linearGradient>
+              </defs>
+
+              <text x="15" y="16" fontSize="11" fontWeight="600" fill="#64748B">Threat Type</text>
+
+              {ticks.map((tickVal, idx) => {
+                const xPos = leftMargin + (tickVal / maxScale) * chartWidth;
+                return (
+                  <g key={`tt-grid-tick-${idx}`}>
+                    <line x1={xPos} y1={topMargin} x2={xPos} y2={topMargin + chartHeight} stroke="#E2E8F0" strokeWidth="1" strokeDasharray={tickVal === 0 ? "none" : "3 3"} />
+                    <text x={xPos} y={topMargin + chartHeight + 18} textAnchor="middle" fontSize="11" fill="#64748B" fontFamily="Inter, system-ui, sans-serif">{tickVal}</text>
+                  </g>
+                );
+              })}
+
+              {data.map((item, idx) => {
+                const yCenter = topMargin + idx * slotHeight + slotHeight / 2;
+                const barY = yCenter - barHeight / 2;
+                const barLength = (item.count / maxScale) * chartWidth;
+                const isHovered = hoveredIdx === idx;
+
+                return (
+                  <g key={`tt-bar-group-${idx}`} onMouseEnter={() => setHoveredIdx(idx)} onMouseLeave={() => setHoveredIdx(null)} style={{ cursor: 'pointer' }}>
+                    <text x={leftMargin - 12} y={barY + barHeight / 2 + 4} textAnchor="end" fontSize="12" fontWeight={isHovered ? "700" : "500"} fill={isHovered ? "#DC2626" : "#0F172A"} fontFamily="Inter, system-ui, sans-serif">{item.threat_type}</text>
+                    <rect x={leftMargin} y={barY} width={chartWidth} height={barHeight} fill="#F8FAFC" rx="4" />
+                    <rect x={leftMargin} y={barY} width={Math.max(barLength, 4)} height={barHeight} fill={isHovered ? "url(#ttBarGradHover)" : "url(#ttBarGrad)"} rx="4" style={{ transition: 'all 0.3s ease-in-out' }} />
+                    <text x={leftMargin + barLength + 8} y={barY + barHeight / 2 + 4} fontSize="12" fontWeight="700" fill={isHovered ? "#991B1B" : "#DC2626"} fontFamily="Inter, system-ui, sans-serif">{item.count.toLocaleString()}</text>
+                    <title>{`${item.threat_type}: ${item.count} events`}</title>
+                  </g>
+                );
+              })}
+
+              <line x1={leftMargin} y1={topMargin} x2={leftMargin} y2={topMargin + chartHeight} stroke="#94A3B8" strokeWidth="1.5" />
+              <line x1={leftMargin} y1={topMargin + chartHeight} x2={leftMargin + chartWidth} y2={topMargin + chartHeight} stroke="#94A3B8" strokeWidth="1.5" />
+              <text x={leftMargin + chartWidth / 2} y={topMargin + chartHeight + 38} textAnchor="middle" fontSize="11" fontWeight="600" fill="#64748B" fontFamily="Inter, system-ui, sans-serif">Number of Classified Events</text>
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    function ModelInfoCard({ performance, loading }) {
+      if (loading) {
+        return <div className="chart-card" style={{ opacity: 0.6 }}><div style={{ color: '#64748B' }}>Loading model specifications...</div></div>;
+      }
+
+      return (
+        <div className="chart-card">
+          <div className="chart-header" style={{ marginBottom: '0.75rem' }}>
+            <h3 className="chart-title">AI Anomaly Detection Model Architecture</h3>
+            <span className="badge" style={{ backgroundColor: '#EFF6FF', color: '#2563EB', fontWeight: 600 }}>Unsupervised Engine</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', fontSize: '0.85rem' }}>
+            <div style={{ background: '#F8FAFC', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', textTransform: 'uppercase' }}>Model Algorithm</div>
+              <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '0.2rem' }}>{performance?.model_name || 'Isolation Forest'}</div>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', textTransform: 'uppercase' }}>Model Version</div>
+              <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '0.2rem' }}>{performance?.model_version || 'isolation_forest_v1'}</div>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', textTransform: 'uppercase' }}>Estimators (n_trees)</div>
+              <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '0.2rem' }}>{performance?.n_estimators || 200}</div>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', textTransform: 'uppercase' }}>Random State</div>
+              <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '0.2rem' }}>{performance?.random_state || 42}</div>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', textTransform: 'uppercase' }}>Mean Anomaly Score</div>
+              <div style={{ fontWeight: 700, color: '#2563EB', marginTop: '0.2rem' }}>{performance?.mean_anomaly_score ?? -0.017}</div>
+            </div>
+            <div style={{ background: '#F8FAFC', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', textTransform: 'uppercase' }}>Median Anomaly Score</div>
+              <div style={{ fontWeight: 700, color: '#2563EB', marginTop: '0.2rem' }}>{performance?.median_anomaly_score ?? -0.014}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.75rem', fontStyle: 'italic' }}>
+            * Note: Isolation Forest operates in an unsupervised manner without artificial labels. Anomaly status is determined statistically relative to learned behavioral baselines.
+          </div>
+        </div>
+      );
+    }
+
+    function EventDetailsModal({ eventId, onClose }) {
+      const [predictionData, setPredictionData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [repredicting, setRepredicting] = useState(false);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        if (!eventId) return;
+        let isMounted = true;
+        setLoading(true);
+        setError(null);
+
+        fetchPredictionByEventId(eventId)
+          .then(data => {
+            if (isMounted) {
+              if (data) setPredictionData(data);
+              else setError(`No prediction record found for ${eventId}`);
+              setLoading(false);
+            }
+          })
+          .catch(err => {
+            if (isMounted) {
+              setError(err.message || "Failed to load prediction details");
+              setLoading(false);
+            }
+          });
+
+        return () => { isMounted = false; };
+      }, [eventId]);
+
+      const handleRunPredict = async () => {
+        setRepredicting(true);
+        try {
+          const res = await predictEvent(eventId);
+          if (res && !res.error) {
+            setPredictionData(res);
+          } else {
+            alert(res?.error || "Failed to execute prediction pipeline.");
+          }
+        } catch (err) {
+          alert("Error: " + err.message);
+        } finally {
+          setRepredicting(false);
+        }
+      };
+
+      if (!eventId) return null;
+      const isAnomalous = predictionData?.prediction === 'Anomalous';
+
+      return (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div style={{ background: '#FFFFFF', borderRadius: '16px', width: '90vw', maxWidth: '750px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #CBD5E1', padding: '1.5rem' }}>
+            <div style={{ position: 'sticky', top: 0, background: '#FFFFFF', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase' }}>SOC Threat Event Investigation</div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0F172A', marginTop: '0.2rem' }}>Event ID: {eventId}</h2>
+              </div>
+              <button onClick={onClose} style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: '#475569', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>🔄 Loading prediction telemetry for {eventId}...</div>
+            ) : error ? (
+              <div style={{ padding: '1rem', background: '#FEF2F2', borderRadius: '8px', color: '#DC2626', fontSize: '0.9rem' }}>⚠️ {error}</div>
+            ) : (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  <div style={{ background: isAnomalous ? '#FEF2F2' : '#F0FDF4', padding: '0.75rem', borderRadius: '8px', border: `1px solid ${isAnomalous ? '#FCA5A5' : '#86EFAC'}` }}>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Prediction Status</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: isAnomalous ? '#DC2626' : '#16A34A', marginTop: '0.2rem' }}>
+                      {isAnomalous ? '🚨 Anomalous' : '✅ Normal'}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Threat Confidence</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#2563EB', marginTop: '0.2rem' }}>
+                      {predictionData?.confidence_score ?? 0}%
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#F8FAFC', padding: '0.75rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Threat Level</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0F172A', marginTop: '0.2rem' }}>
+                      {predictionData?.severity || 'Low'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: '1rem', border: '1px solid #E2E8F0', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div><strong>Threat Type:</strong> {predictionData?.threat_type || 'Unknown'}</div>
+                    <div><strong>Anomaly Score:</strong> {predictionData?.anomaly_score ?? 0}</div>
+                    <div><strong>Model Version:</strong> {predictionData?.model_version || 'isolation_forest_v1'}</div>
+                    <div><strong>Prediction Time:</strong> {predictionData?.prediction_timestamp || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0369A1', marginBottom: '0.5rem' }}>🔍 AI Analysis & Reason Breakdown</h4>
+                  {predictionData?.explanation && predictionData.explanation.length > 0 ? (
+                    <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem', color: '#0C4A6E' }}>
+                      {predictionData.explanation.map((reason, idx) => (
+                        <li key={idx} style={{ marginBottom: '0.3rem' }}>
+                          <span style={{ color: '#0284C7', fontWeight: 'bold', marginRight: '0.3rem' }}>✓</span> {reason}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div style={{ fontSize: '0.85rem', color: '#0C4A6E' }}>No specific reason codes logged.</div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                  <button onClick={handleRunPredict} disabled={repredicting} style={{ background: '#2563EB', color: '#FFFFFF', border: 'none', borderRadius: '6px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
+                    {repredicting ? '⚡ Processing...' : '⚡ Re-Predict Event (POST /predict)'}
+                  </button>
+                  <button onClick={onClose} style={{ background: '#E2E8F0', color: '#334155', border: 'none', borderRadius: '6px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>Close View</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function ThreatTable({ predictions, total, page, setPage, limit, loading, filters, setFilters, onSelectEvent }) {
+      const [searchInput, setSearchInput] = useState(filters?.search || '');
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+
+      const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        setFilters({ ...filters, search: searchInput });
+        setPage(1);
+      };
+
+      const getPredictionBadge = (prediction) => {
+        if (prediction === 'Anomalous') {
+          return <span style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FCA5A5', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.75rem' }}>🚨 Anomalous</span>;
+        }
+        return <span style={{ background: '#F0FDF4', color: '#16A34A', border: '1px solid #86EFAC', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600, fontSize: '0.75rem' }}>✅ Normal</span>;
+      };
+
+      const getSeverityBadge = (sev) => {
+        const s = sev ? String(sev).toLowerCase() : '';
+        let bg = '#F1F5F9', color = '#475569';
+        if (s === 'critical') { bg = '#FEF2F2'; color = '#DC2626'; }
+        else if (s === 'high') { bg = '#FFF7ED'; color = '#EA580C'; }
+        else if (s === 'medium') { bg = '#FFFBEB'; color = '#D97706'; }
+        else if (s === 'low') { bg = '#EFF6FF'; color = '#2563EB'; }
+        return <span style={{ background: bg, color, padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600, fontSize: '0.75rem', textTransform: 'capitalize' }}>{sev}</span>;
+      };
+
+      return (
+        <div className="chart-card" style={{ marginTop: '1rem' }}>
+          <div className="chart-header" style={{ marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <h3 className="chart-title">AI Threat Detection & Prediction Table</h3>
+              <div style={{ fontSize: '0.8rem', color: '#64748B' }}>Displaying {predictions.length} of {total.toLocaleString()} threat records</div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+              <select className="filter-select" value={filters?.prediction || 'All'} onChange={e => { setFilters({ ...filters, prediction: e.target.value }); setPage(1); }}>
+                <option value="All">All Predictions</option>
+                <option value="Anomalous">Anomalous Only</option>
+                <option value="Normal">Normal Only</option>
+              </select>
+
+              <select className="filter-select" value={filters?.threat_type || 'All'} onChange={e => { setFilters({ ...filters, threat_type: e.target.value }); setPage(1); }}>
+                <option value="All">All Threat Types</option>
+                <option value="Brute Force">Brute Force</option>
+                <option value="Malware">Malware</option>
+                <option value="SQL Injection">SQL Injection</option>
+                <option value="Phishing">Phishing</option>
+                <option value="Privilege Escalation">Privilege Escalation</option>
+                <option value="Anomalous Activity">Anomalous Activity</option>
+                <option value="Normal Activity">Normal Activity</option>
+              </select>
+
+              <select className="filter-select" value={filters?.severity || 'All'} onChange={e => { setFilters({ ...filters, severity: e.target.value }); setPage(1); }}>
+                <option value="All">All Severities</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.2rem' }}>
+                <input type="text" className="search-input" placeholder="Search Event ID..." value={searchInput} onChange={e => setSearchInput(e.target.value)} style={{ width: '140px', padding: '0.35rem 0.6rem' }} />
+                <button type="submit" className="refresh-btn" style={{ padding: '0.35rem 0.6rem' }}>🔍</button>
+              </form>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Event ID</th>
+                  <th>Threat Type</th>
+                  <th>Prediction</th>
+                  <th>Threat Confidence</th>
+                  <th>Threat Level</th>
+                  <th>Timestamp</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>🔄 Loading predictions...</td></tr>
+                ) : predictions.length === 0 ? (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>No threat predictions found.</td></tr>
+                ) : (
+                  predictions.map(item => (
+                    <tr key={item.id || item.event_id}>
+                      <td>
+                        <button onClick={() => onSelectEvent(item.event_id)} style={{ background: 'none', border: 'none', color: '#2563EB', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                          {item.event_id}
+                        </button>
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#0F172A' }}>{item.threat_type}</td>
+                      <td>{getPredictionBadge(item.prediction)}</td>
+                      <td><span style={{ fontWeight: 700, color: '#1E293B' }}>{item.confidence_score !== undefined ? `${item.confidence_score}%` : 'N/A'}</span></td>
+                      <td>{getSeverityBadge(item.severity)}</td>
+                      <td style={{ fontSize: '0.75rem', color: '#64748B' }}>{item.prediction_timestamp ? item.prediction_timestamp.substring(0, 19).replace('T', ' ') : 'N/A'}</td>
+                      <td>
+                        <button className="refresh-btn" onClick={() => onSelectEvent(item.event_id)} style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
+                          🔍 Investigate
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #E2E8F0', fontSize: '0.85rem' }}>
+            <div style={{ color: '#64748B' }}>Page {page} of {totalPages} ({total.toLocaleString()} items)</div>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <button className="page-btn" disabled={page <= 1 || loading} onClick={() => setPage(p => Math.max(1, p - 1))} style={{ opacity: page <= 1 ? 0.5 : 1 }}>◀ Prev</button>
+              <button className="page-btn" disabled={page >= totalPages || loading} onClick={() => setPage(p => Math.min(totalPages, p + 1))} style={{ opacity: page >= totalPages ? 0.5 : 1 }}>Next ▶</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ThreatDetectionView() {
+      const [summary, setSummary] = useState(null);
+      const [performance, setPerformance] = useState(null);
+      const [anomalies, setAnomalies] = useState([]);
+      const [predictions, setPredictions] = useState([]);
+      const [totalPredictions, setTotalPredictions] = useState(0);
+
+      const [page, setPage] = useState(1);
+      const [loadingSummary, setLoadingSummary] = useState(true);
+      const [loadingTable, setLoadingTable] = useState(true);
+      const [summaryError, setSummaryError] = useState(null);
+
+      const [selectedEventId, setSelectedEventId] = useState(null);
+      const [filters, setFilters] = useState({ prediction: 'All', threat_type: 'All', severity: 'All', search: '' });
+
+      const loadSummary = useCallback(async () => {
+        setLoadingSummary(true);
+        setSummaryError(null);
+        try {
+          const [sumRes, perfRes, anomRes] = await Promise.all([
+            fetchThreatSummary(),
+            fetchModelPerformance(),
+            fetchAnomalies({ page: 1, limit: 100 })
+          ]);
+
+          if (sumRes && !sumRes.error) setSummary(sumRes);
+          else if (sumRes?.error) setSummaryError(sumRes.error);
+
+          if (perfRes && !perfRes.error) setPerformance(perfRes);
+          if (anomRes && anomRes.anomalies) setAnomalies(anomRes.anomalies);
+        } catch (err) {
+          setSummaryError(err.message);
+        } finally {
+          setLoadingSummary(false);
+        }
+      }, []);
+
+      const loadTable = useCallback(async () => {
+        setLoadingTable(true);
+        try {
+          const predRes = await fetchPredictions({
+            page,
+            limit: 25,
+            prediction: filters.prediction,
+            threat_type: filters.threat_type,
+            severity: filters.severity,
+            search: filters.search
+          });
+
+          if (predRes && predRes.predictions) {
+            setPredictions(predRes.predictions);
+            setTotalPredictions(predRes.total || 0);
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoadingTable(false);
+        }
+      }, [page, filters]);
+
+      useEffect(() => { loadSummary(); }, [loadSummary]);
+      useEffect(() => { loadTable(); }, [loadTable]);
+
+      return (
+        <div className="dashboard-body">
+          <M2KPICards summary={summary} loading={loadingSummary} error={summaryError} />
+
+          <div className="charts-grid" style={{ marginTop: '1rem' }}>
+            <AnomalyChart summary={summary} />
+            <ThreatTrendChart anomalies={anomalies} />
+          </div>
+
+          <div className="charts-grid" style={{ marginTop: '1rem', gridTemplateColumns: '1fr 1fr' }}>
+            <ThreatTypeChart threatTypes={summary?.threat_types} />
+            <ModelInfoCard performance={performance} loading={loadingSummary} />
+          </div>
+
+          <ThreatTable
+            predictions={predictions}
+            total={totalPredictions}
+            page={page}
+            setPage={setPage}
+            limit={25}
+            loading={loadingTable}
+            filters={filters}
+            setFilters={setFilters}
+            onSelectEvent={id => setSelectedEventId(id)}
+          />
+
+          {selectedEventId && (
+            <EventDetailsModal eventId={selectedEventId} onClose={() => setSelectedEventId(null)} />
+          )}
+        </div>
+      );
+    }
+
+    function App() {
+      const [currentUser, setCurrentUser] = useState(null);
+      const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+      const [activeTab, setActiveTab] = useState('overview');
+      const [stats, setStats] = useState(null);
+      const [threats, setThreats] = useState([]);
+      const [events, setEvents] = useState([]);
+      const [totalEvents, setTotalEvents] = useState(0);
+      const [page, setPage] = useState(1);
+      const [loading, setLoading] = useState(false);
+      const [pollingInterval, setPollingInterval] = useState(10000);
+
+      const [filters, setFilters] = useState({ severity: 'All', date: '', eventType: 'All', ipAddress: '', search: '' });
+
+      // Initial check for existing authenticated session
+      useEffect(() => {
+        const checkAuth = async () => {
+          setIsCheckingAuth(true);
+          const user = await fetchCurrentUser();
+          setCurrentUser(user);
+          setIsCheckingAuth(false);
+        };
+        checkAuth();
+      }, []);
+
+      const loadData = useCallback(async () => {
+        if (!currentUser) return;
+        setLoading(true);
+        try {
+          const [sData, tData, eData] = await Promise.all([
+            fetchStats(),
+            fetchThreats(),
+            fetchEvents({ ...filters, page, limit: 25 })
+          ]);
+
+          if (sData?.unauthorized || eData?.unauthorized) {
+            setCurrentUser(null);
+            return;
+          }
+
+          setStats(sData);
+          setThreats(tData || []);
+          setEvents(eData?.events || []);
+          setTotalEvents(eData?.total || 0);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
+      }, [currentUser, filters, page]);
+
+      useEffect(() => {
+        if (currentUser) {
+          loadData();
+        }
+      }, [currentUser, loadData]);
+
+      useEffect(() => {
+        if (!currentUser || pollingInterval <= 0) return;
+        const timer = setInterval(() => { loadData(); }, pollingInterval);
+        return () => clearInterval(timer);
+      }, [currentUser, pollingInterval, loadData]);
+
+      const handleLogout = async () => {
+        await apiLogout();
+        setCurrentUser(null);
+      };
+
+      if (isCheckingAuth) {
+        return (
+          <div className="login-container">
+            <div style={{ color: '#2563EB', fontSize: '1rem', fontWeight: 500 }}>
+              Checking session authorization...
+            </div>
+          </div>
+        );
+      }
+
+      if (!currentUser) {
+        return <Login onLoginSuccess={(u) => setCurrentUser(u)} />;
+      }
+
+      const eventTypesList = threats.map(t => t.event_type);
+
+      return (
+        <div className="app-container">
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          <div className="main-wrapper">
+            <Header activeTab={activeTab} onRefresh={loadData} pollingInterval={pollingInterval} setPollingInterval={setPollingInterval} user={currentUser} onLogout={handleLogout} />
+            {activeTab === 'ai-detection' ? (
+              <ThreatDetectionView />
+            ) : (
+              <div className="dashboard-body">
+                <KPICards stats={stats} />
+                <Filters filters={filters} setFilters={(f) => { setFilters(f); setPage(1); }} eventTypes={eventTypesList} />
+                {(activeTab === 'overview' || activeTab === 'analytics' || activeTab === 'threats') && (
+                  <div className="charts-grid">
+                    <EventTrendGraph events={events} />
+                    <ThreatDistributionChart stats={stats} />
+                  </div>
+                )}
+                {activeTab === 'overview' && <TopAttackTypes threats={threats} />}
+                <EventTable events={events} total={totalEvents} page={page} setPage={setPage} limit={25} loading={loading} />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+
+</html>

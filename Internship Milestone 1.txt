@@ -1,0 +1,403 @@
+
+Milestone 1: Security Data Aggregation & Threat Intelligence Layer :-
+
+
+Objective of Milestone 1 :-
+Our goal in Milestone 1 is NOT to detect attacks yet. We first need to collect security data, clean it, standardize it, enrich it, and prepare it for machine learning in Milestone 
+
+
+Real World Example
+
+Suppose an organization receives:
+
+Firewall Logs
+Login Logs
+IDS Alerts
+Vulnerability Reports
+Threat Intelligence Feeds
+Previous Incident Recrods
+
+Firewall Logs :
+| Timestamp | Source IP   | Destination IP | Action  |
+
+| 10:00     | 192.168.1.5 | 8.8.8.8        | Allowed |
+
+
+
+Login Log :
+
+| Timestamp | Username | Failed Attempts |
+| --------- | -------- | --------------- |
+| 10:00     | admin    | 12              |
+
+Vulnerability Feed :-
+
+| CVE          | Severity |
+| ------------ | -------- |
+| CVE-2024-001 | Critical |
+
+
+
+Deliverables of Milestone 1
+
+~ Dataset collected
+
+~ Dataset cleaned
+
+~ Feature engineered dataset
+
+~ Threat intelligence mapping
+
+~ APIs for processed data
+
+~ Database connection
+
+~Dashboard with security analytics
+
+
+
+
+
+Backend Task 1:-
+
+Collect Security Datasets
+
+Possible Datasets :----->
+
+Possible datasets:
+
+Login Logs
+Failed Login Logs
+Network Traffic Logs
+Malware Alerts
+IDS Alerts
+CVE Vulnerability Data
+Threat Intelligence Feeds
+
+Backend Task 2: -
+
+Create Standard Security Event Schema
+
+All events should become:
+
+event_id
+timestamp	
+source_ip	
+destination_ip	
+event_type	
+severity	
+status
+
+This is called normalization.
+
+
+Backend Task 3: --->
+
+**Data Cleaning**
+
+Handle:
+
+Missing values
+Duplicate logs
+Invalid timestamps
+Null values
+Unknown severity
+
+
+Backend Task 4: -- >
+
+Standardize Severity Levels
+
+Convert:
+critical
+Critical
+CRITICAL
+HIGH
+High
+high
+
+Into :
+Critical
+High
+Medium
+Low
+
+
+Backend Task 5: --->
+
+Threat Intelligence Enrichment
+
+Example:
+10 failed login attempts
+
+Add:
+Possible Brute Force Attack
+
+Example:
+Known malicious IP
+
+Add:
+Threat Indicator = True
+
+
+Backend Task 6:--->
+
+MITRE ATT&CK Mapping
+
+
+Example :- 
+
+| Event Type         | MITRE Technique |
+
+| Brute Force        | T1110           
+| Phishing           | T1566           
+| Credential Dumping | T1003           
+| Malware            | T1059
+
+
+Backend Task 7 :-->
+Feature Engineering
+
+Create:
+
+Failed Login Count
+Hour Of Day
+Weekend Flag
+Severity Score
+Event Frequency
+Malicious IP Flag
+Threat Feed Match
+CVSS Score
+Number Of Alerts Per User
+
+
+Backend Task 8 :--->
+Store Data in Database.
+
+Store:
+
+Processed logs
+Enriched events
+Threat mappings
+Severity levels
+Risk labels
+
+
+Backend Task 9:-->
+
+Build REST APIs.
+
+1.GET /events
+Return all processed events.
+
+2.GET /stats
+
+Return:
+Json:{
+total_events:5000,
+critical_events:50,
+high_events:120
+}
+
+3.GET /threats
+Return:
+
+Json:[
+{
+event_type:"Brute Force",
+count:25
+}
+]
+
+
+BACKEND FOLDER STRUCTURE:
+
+backend
+│
+├── data
+├── preprocessing
+├── routes
+├── models
+├── database
+├── services
+├── utils
+├── app.py
+└── requirements.txt
+
+
+Milestone 1 Deliverables Checklist
+
+Backend:---->
+
+~ Data Collection
+
+~ Data Cleaning
+
+~ Threat Enrichment
+
+~ MITRE Mapping
+
+~ Database
+
+~ APIs
+
+~ Feature Engineering
+
+
+
+
+**************************************
+*************************************
+************************************
+
+
+Frontend Responsibilities :----->
+
+
+Frontend Task 1:
+Login Page
+
+Simple SOC Analyst Login.
+Simple SOC Analyst Login.
+
+Frontend Task 2:
+Dashboard Layout
+
+Sidebar:
+
+Overview
+Security Events
+Threat Intelligence
+Vulnerabilities
+Analytics
+
+
+Frontend Task 3:
+KPI Cards
+
+Show:
+
+Total Events
+Critical Threats
+High Severity Alerts
+Vulnerabilities
+Active Incidents
+
+
+Frontend Task 4:
+Event Table
+
+Columns:
+
+Time 
+ Event Type 
+ Severity 
+ Source IP 
+ Status
+
+
+Frontend Task 5: -->
+
+Threat Distribution Chart.
+
+Pie Chart:
+
+Critical
+High
+Medium
+Low
+
+
+
+Frontend Task 6:
+Event Trend Graph
+
+Line chart:
+
+Events over time.
+
+
+Frontend Task 7:
+Top Attack Types
+
+Bar chart:
+
+Brute Force
+Malware
+Phishing
+Reconnaissance
+
+
+Frontend Task 8:
+Filters
+
+Filter by:
+
+Severity
+Date
+Event Type
+IP Address
+
+
+Frontend Folder Structure:-->
+
+frontend
+│
+├── pages
+├── components
+├── services
+├── charts
+├── assets
+├── App.jsx
+└── main.jsx
+
+
+APIs Frontend Will Consume:
+
+GET /events
+GET /stats
+GET /threats
+
+
+Milestone 1 Deliverables Checklist:--
+
+Frontend
+
+Dashboard
+
+Charts
+
+Tables
+
+Filters
+
+KPI Cards
+
+
+Evaluation Criteria :-->
+
+Backend:--
+
+~ Is data cleaned?
+
+~ Are APIs working?
+
+~ Is database connected?
+
+~ Is MITRE mapping done?
+
+~ Are features extracted?
+
+Frontend:-->
+
+~ Dashboard complete?
+
+~ Graphs working?
+
+~ Filters working?
+
+~ API integrated?
+
+~ Real-time updates working?
+
+Milestone 1 Deadline : 6th Aug

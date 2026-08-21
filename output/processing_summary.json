@@ -1,0 +1,28 @@
+{
+    "rows_before_cleaning": 1800,
+    "duplicates_removed": 0,
+    "missing_values_handled": 427,
+    "invalid_timestamps_handled": 0,
+    "rows_after_cleaning": 1800,
+    "threat_matches": 0,
+    "total_events": 1800,
+    "mitre_mapped_events": 179,
+    "mitre_unmapped_events": 1621,
+    "mitre_mapping_percentage": 9.94,
+    "vulnerabilities_count": 1,
+    "total_incidents_count": 1,
+    "active_incidents_count": 0,
+    "closed_incidents_count": 1,
+    "malware_events_count": 165,
+    "engineered_features": [
+        "failed_login_count",
+        "hour_of_day",
+        "weekend_flag",
+        "severity_score",
+        "event_frequency",
+        "malicious_ip_flag",
+        "threat_feed_match",
+        "cvss_score_final",
+        "alerts_per_user"
+    ]
+}
