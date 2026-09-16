@@ -26,6 +26,9 @@ def predict_event():
     data = request.get_json(silent=True) or {}
     event_id = str(data.get("event_id") or request.args.get("event_id") or "").strip()
 
+    if not event_id and not data:
+        return jsonify({"error": "Missing event_id or event payload"}), 400
+
     db = db_session()
     try:
         if event_id:

@@ -1,0 +1,313 @@
+<USER_REQUEST>
+Perform a FINAL MILESTONE 3 COMPLIANCE VERIFICATION ONLY.
+
+IMPORTANT:
+- Do NOT modify the code yet.
+- Do NOT add new features.
+- Do NOT change the M1/M2 datasets.
+- Do NOT retrain or replace the M2 ML model.
+- Do NOT change the existing risk scores merely to match examples in the specification.
+- Do NOT replace Flask with FastAPI.
+- Do NOT replace the current architecture.
+- Do NOT fabricate test results.
+- Do NOT use mock/fake data to satisfy requirements.
+- Do NOT change MongoDB configuration. MongoDB is already confirmed working at:
+  mongodb://localhost:27017
+  database: soc_threatdetect
+- Preserve all working M1 and M2 functionality.
+
+Use the UPDATED "milestone 3(3).txt" specification as the compliance reference.
+
+Your task is to inspect the CURRENT implementation and determine whether anything from the updated M3 specification is genuinely missing or non-compliant.
+
+CHECK THE FOLLOWING:
+
+1. M2 → M3 DATA FLOW
+Verify that M3 consumes the existing M2 prediction output, including:
+- event_id
+- prediction
+- confidence_score / ML confidence
+- anomaly_score
+- severity
+- event_type
+- asset information
+- user information
+- source_ip
+- timestamp
+
+Do not create a new dataset.
+
+2. ASSET CRITICALITY
+Verify:
+- Critical
+- High
+- Medium
+- Low
+
+Verify the normalization actually used by the implementation.
+IMPORTANT: The updated specification contains an inconsistency where Medium appears as 0.550 in one section while the earlier specification used 0.50.
+Do NOT change the implementation automatically.
+Report the actual implementation value and whether the documented logic is consistent.
+
+3. VULNERABILITY / CVSS
+Verify:
+- CVE ID
+- CVSS score
+- vulnerability severity
+- affected asset
+- vulnerability exposure contribution
+
+Confirm that CVSS is treated as a vulnerability-risk component and NOT directly treated as the final risk score.
+
+4. MITRE ATT&CK
+Verify that existing MITRE mappings are actually used as threat context.
+Check examples such as:
+- Brute Force → T1110
+- Phishing → T1566
+- SQL Injection / public-facing application → T1190
+- Port Scan → T1046
+- Privilege Escalation → T1068
+
+5. THREAT INTELLIGENCE / IOC
+Verify that available threat-intelligence information is incorporated into risk calculation/explainability.
+Check:
+- source IP / IOC
+- malicious/suspicious status
+- threat intelligence contribution
+- explainability
+
+Do not invent external threat actors or live intelligence.
+
+6. RISK SCORING
+Verify the actual formula and weights.
+
+Expected starting structure:
+- Threat Severity = 25%
+- ML Confidence = 25%
+- Asset Criticality = 20%
+- Vulnerability Exposure = 20%
+- Threat Intelligence = 10%
+
+Verify:
+- normalized inputs
+- final score range 0–100
+- deterministic calculation
+- no random/manual risk assignment
+
+Verify the current classification:
+- Low
+- Medium
+- High
+- Critical
+
+If the implementation uses a simplified 4-level classification, report the actual boundaries.
+
+7. THREAT PRIORITIZATION
+Verify that incidents are dynamically sorted by descending risk score and that the highest-risk incident appears first.
+
+8. EVENT CORRELATION
+Verify the actual correlation implementation.
+
+Check whether it uses appropriate fields such as:
+- user
+- source_ip
+- destination_ip
+- asset
+- timestamp
+- event_type
+- MITRE technique
+
+Verify the actual correlation time window.
+The specification permits 5–30 minutes.
+Report the actual configured value.
+
+9. MULTI-STAGE ATTACK CHAINS
+Verify:
+- multiple related events can form a possible attack chain
+- attack-chain stages/techniques are represented
+- chains are described as POSSIBLE rather than confirmed attacks
+- no fabricated attack chains
+
+Compare the actual API structure with the updated standardized structure:
+{
+  "attack_chain_id": "...",
+  "events": [...],
+  "techniques": [...],
+  "stage": "...",
+  "risk_score": ...,
+  "confidence": ...
+}
+
+Report any missing fields.
+
+10. INCIDENT CREATION
+Verify the MongoDB `incidents` collection and confirm the actual persistence layer.
+
+IMPORTANT:
+MongoDB has already been verified from the running backend log:
+"[IncidentRepository] Successfully connected to MongoDB at mongodb://localhost:27017 (Database: soc_threatdetect)."
+
+Therefore:
+- verify MongoDB is still being used
+- verify incidents are persisted there
+- do NOT switch to SQLite
+- do NOT change the MongoDB implementation
+
+11. INCIDENT LIFECYCLE
+Verify support for:
+- Open
+- Investigating
+- Resolved
+- False Positive (if implemented)
+
+Report exactly what is currently supported.
+
+12. RESPONSE RECOMMENDATIONS
+Verify contextual recommendations for different threat types.
+
+Confirm that recommendations are guidance only.
+
+IMPORTANT:
+No automatic destructive actions such as:
+- automatic account lock
+- automatic IP blocking
+- automatic host isolation
+
+13. EXPLAINABILITY
+Verify that an analyst can answer:
+"Why is this incident high risk?"
+
+Check that explanations can include:
+- critical/high-value asset
+- ML confidence
+- vulnerability/CVSS
+- threat intelligence/IOC
+- threat severity
+- correlated events
+
+14. STANDARD INCIDENT API CONTRACT
+Inspect the actual incident API response and compare it with the updated specification.
+
+Check for equivalent fields:
+- incident_id
+- threat_type
+- risk_score
+- risk_level
+- priority
+- affected_asset
+- ml_confidence
+- related_events
+- MITRE techniques
+- IOC status
+- reasons
+- recommendations
+- status
+
+Do NOT change the API yet.
+Only report missing/inconsistent fields.
+
+15. REQUIRED M3 APIs
+Actually test all of these and report HTTP status + brief response validation:
+
+POST /api/v1/risk/calculate
+GET  /api/v1/risk/high
+GET  /api/v1/risk/summary
+GET  /api/v1/incidents
+GET  /api/v1/incidents/{incident_id}
+GET  /api/v1/attack-chains
+GET  /api/v1/recommendations/{incident_id}
+
+16. FRONTEND
+Verify the five specified functional areas:
+- Risk Overview
+- Priority Incidents
+- Incident Investigation
+- Attack Chain
+- Security Intelligence
+
+Also verify:
+- KPI cards
+- risk distribution
+- risk trend
+- priority sorting
+- filters
+- investigation details
+- explainability
+- recommendations
+- MITRE/CVE/CVSS/IOC information
+- API integration
+- responsive/usable UI
+
+17. MANUAL TEST CASE
+Do NOT modify the dataset.
+
+Determine whether the implementation can process the specification's manual scenario:
+EVT-1001
+Brute Force
+Suspicious
+ML Confidence 92%
+Anomaly Score -0.74
+Production Database
+Critical asset
+CVSS 9.2
+Malicious IOC
+MITRE T1110
+25 failed login attempts
+After-hours activity
+
+Verify whether the implementation has the required input fields and logic to produce a high/critical risk result.
+
+Do NOT force the exact example score of 95 unless the implemented formula actually produces it.
+
+18. M1/M2 REGRESSION
+Run all existing M1/M2 regression tests.
+
+Verify:
+- M1 APIs still work
+- M2 prediction APIs still work
+- anomaly detection still works
+- existing dashboard functionality still works
+- no M3 changes broke M1/M2
+
+19. FINAL REPORT FORMAT
+
+Return ONLY a structured compliance report with:
+
+A. PASS — fully compliant
+B. PARTIAL — implemented but differs from specification
+C. MISSING — genuinely not implemented
+D. ISSUE — implemented incorrectly or broken
+E. NOT APPLICABLE — specification item is optional
+
+For every PARTIAL, MISSING, or ISSUE:
+- identify the exact requirement
+- identify the actual implementation
+- explain the gap
+- state whether a code change is actually necessary
+
+At the end provide:
+
+FINAL M3 STATUS:
+- READY FOR DEMO
+or
+- NEEDS FIXES
+
+Then provide:
+1. Only the genuinely required fixes
+2. Files that would need modification
+3. Why each fix is required
+4. Confirmation that M1/M2 and MongoDB will remain untouched
+
+Do not make any code changes during this verification.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-07T14:29:18+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\.env (LANGUAGE_UNSPECIFIED)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\scratch\check_html.py (LANGUAGE_PYTHON)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\backend\ml\test_m3_risk_engine.py (LANGUAGE_PYTHON)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\backend\ml\test_profile_api.py (LANGUAGE_PYTHON)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\frontend\index.html (LANGUAGE_HTML)
+</ADDITIONAL_METADATA>

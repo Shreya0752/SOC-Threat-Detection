@@ -1,0 +1,9 @@
+const navItems = [
+        { id: 'overview', label: 'Overview', icon: '📊' },
+        { id: 'risk-intelligence', label: 'Risk Intelligence', icon: '⚡' },
+        { id: 'ai-detection', label: 'AI Threat Detection', icon: '🤖' },
+        { id: 'events', label: 'Security Events', icon: '🛡️' },
+        { id: 'threats', label: 'Threat Intelligence', icon: '⚠️' },
+        { id: 'vulnerabilities', label: 'Vulnerabilities', icon: '🔍' },
+        { id: 'analytics', label: 'Analytics', icon: '📈' }
+      ];

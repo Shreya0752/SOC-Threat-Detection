@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
 
-# Ensure project root is in sys.path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -27,7 +26,6 @@ def load_m1_events_from_db(db_session=None):
         event_dicts = [evt.to_dict() for evt in events]
         df = pd.DataFrame(event_dicts)
         
-        # Pull engineered features if nested inside dict
         if "engineered_features" in df.columns:
             eng_df = pd.json_normalize(df["engineered_features"])
             for col in eng_df.columns:

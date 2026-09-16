@@ -1,28 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOC ThreatDetect AI — Security Operations Dashboard</title>
-  <link rel="stylesheet" href="/assets/index.css">
-
-
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script>
-    (function() {
-      const theme = localStorage.getItem('theme') || 'light';
-      document.documentElement.setAttribute('data-theme', theme);
-    })();
-  </script>
-</head>
-
-<body>
-  <div id="root"></div>
-
-  <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
 
     const API_BASE = window.location.origin.includes("5000")
@@ -5762,7 +5738,4 @@
     }
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
-</body>
-
-</html>
+  

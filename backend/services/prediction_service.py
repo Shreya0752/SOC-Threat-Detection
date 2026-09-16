@@ -135,7 +135,7 @@ class PredictionService:
         """
         Retrieves paginated and filtered prediction records from threat_predictions table.
         """
-        query = db.query(ThreatPrediction)
+        query = db.query(ThreatPrediction).join(SecurityEvent, ThreatPrediction.event_id == SecurityEvent.event_id)
 
         if prediction and prediction.lower() != "all":
             query = query.filter(func.lower(ThreatPrediction.prediction) == prediction.lower())
@@ -152,7 +152,9 @@ class PredictionService:
                 or_(
                     func.lower(ThreatPrediction.event_id).like(func.lower(search_pattern)),
                     func.lower(ThreatPrediction.threat_type).like(func.lower(search_pattern)),
-                    func.lower(ThreatPrediction.prediction).like(func.lower(search_pattern))
+                    func.lower(ThreatPrediction.prediction).like(func.lower(search_pattern)),
+                    func.lower(SecurityEvent.username).like(func.lower(search_pattern)),
+                    func.lower(SecurityEvent.device_name).like(func.lower(search_pattern))
                 )
             )
 

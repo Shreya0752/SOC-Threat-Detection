@@ -1,0 +1,1017 @@
+<USER_REQUEST>
+I want to implement Milestone 4 as the FINAL INTEGRATION AND PRESENTATION LAYER of my existing SOC ThreatDetect AI project.
+
+IMPORTANT:
+M4 is NOT a new application and NOT a new independent module.
+
+The existing project already has:
+- M1: security data preparation, normalization, enrichment, MITRE, CVE, IOC, assets
+- M2: ML threat detection, anomaly detection, threat classification, confidence score
+- M3: risk scoring, risk levels, prioritization, correlation, attack chains, recommendations, incidents, explainability, analyst workflow, feedback, audit history
+
+M4 must integrate these existing components into ONE professional end-to-end cybersecurity platform.
+
+==================================================
+CORE M4 OBJECTIVE
+==================================================
+
+The final analyst workflow should be:
+
+Login
+  ↓
+SOC Overview
+  ↓
+Understand current security posture
+  ↓
+Identify critical/high-risk threats
+  ↓
+Open an incident
+  ↓
+Investigate risk score and explainability
+  ↓
+View related events
+  ↓
+View possible attack chain
+  ↓
+View MITRE / CVE / IOC / threat intelligence
+  ↓
+View recommendations
+  ↓
+Change incident status / provide analyst feedback
+
+The final application should feel like ONE complete SOC platform rather than separate M1, M2 and M3 screens.
+
+==================================================
+STRICT RULES
+==================================================
+
+1. DO NOT create a new application.
+2. DO NOT replace the existing Flask backend.
+3. DO NOT replace the existing frontend architecture.
+4. DO NOT replace the existing datasets.
+5. DO NOT retrain the M2 ML model.
+6. DO NOT change working M1/M2/M3 algorithms unless required for integration or bug fixing.
+7. DO NOT remove existing M1/M2/M3 functionality.
+8. DO NOT create fake/mock security data.
+9. DO NOT hard-code dashboard statistics.
+10. All dashboard information must come from the existing backend/database/APIs.
+11. Keep MongoDB as the primary persistence layer for M3 incidents.
+12. Keep the existing SQLite fallback.
+13. Preserve all existing M3 API contracts.
+14. Do not add an LLM/chatbot merely to call the project AI-assisted.
+15. Do not add destructive automatic response actions.
+16. Recommendations must remain advisory only.
+17. Do not introduce unnecessary libraries that could break the current application.
+18. Use the existing native SVG/CSS chart approach where possible.
+19. Do NOT introduce Recharts if the current architecture does not support it safely.
+20. Maintain both dark and light modes.
+21. Maintain strong text contrast.
+22. Remove unnecessary duplicated UI labels and controls.
+23. Do not display "Milestone 4" as a user-facing badge.
+24. Do not display fake email/configuration information.
+25. Do not expose passwords, secrets, API keys or database credentials.
+
+BEFORE CHANGING ANYTHING:
+- Inspect the complete existing backend/frontend structure.
+- Understand how M1 → M2 → M3 data currently flows.
+- Identify which M4 requirements are already implemented.
+- Reuse existing functionality instead of rebuilding it.
+- Make changes incrementally.
+
+==================================================
+M4 TASK 1 — INTEGRATE M1 + M2 + M3
+==================================================
+
+Ensure the final dashboard consumes real data from all previous milestones.
+
+M1 information:
+- Security Events
+- Threat Intelligence
+- CVE
+- CVSS
+- IOC
+- MITRE ATT&CK
+- Assets
+- Departments
+
+M2 information:
+- Anomaly Score
+- Prediction
+- Threat Classification
+- Confidence Score
+- Model Version
+
+M3 information:
+- Risk Score
+- Risk Level
+- Priority
+- Related Events
+- Attack Chain
+- Recommendations
+- Incident Status
+- Analyst Feedback
+- Explainability
+
+Expected architecture:
+
+Existing Database
+      ↓
+Flask Backend / APIs
+      ↓
+M1 + M2 + M3 Data
+      ↓
+Unified React Dashboard
+
+Everything displayed on the frontend must be backed by actual data.
+
+Audit the existing frontend for hardcoded values.
+
+For example, values such as:
+- incident counts
+- threat counts
+- IOC counts
+- CVE counts
+- attack-chain counts
+- risk statistics
+- chart values
+
+must be dynamically calculated from the backend/database.
+
+If something is already dynamic, preserve it.
+
+==================================================
+M4 TASK 2 — FINAL SOC OVERVIEW DASHBOARD
+==================================================
+
+Make the existing "Overview" page the primary SOC dashboard.
+
+It should answer:
+
+"What is happening in my security environment right now?"
+
+Create/improve the dashboard with:
+
+### KPI CARDS
+
+1. Total Security Events
+2. Detected Threats
+3. Critical Threats
+4. High Risk Incidents
+5. Active Incidents
+6. Affected Assets
+
+IMPORTANT:
+Do NOT use the example numbers from the M4 specification.
+
+Calculate these dynamically from actual project data.
+
+Clearly define each KPI:
+- Total Security Events → actual M1 events
+- Detected Threats → actual M2 detected/anomalous threats according to existing implementation
+- Critical Threats → actual critical risk incidents/events
+- High Risk Incidents → actual high-priority incidents
+- Active Incidents → Open + Investigating
+- Affected Assets → unique affected assets
+
+Do not double-count unnecessarily.
+
+==================================================
+M4 TASK 3 — THREAT DISTRIBUTION
+==================================================
+
+Add/improve charts for:
+
+### Threat Severity
+- Critical
+- High
+- Medium
+- Low
+
+### Threat Type
+Use actual threat types available in the dataset, such as:
+- Brute Force
+- Malware
+- Phishing
+- SQL Injection
+- Privilege Escalation
+- etc.
+
+Do not invent threat categories that do not exist in the data.
+
+### Incident Status
+- Open
+- Investigating
+- Resolved
+- False Positive
+
+All charts must use real backend data.
+
+==================================================
+M4 TASK 4 — RISK TREND
+==================================================
+
+Improve the risk trend visualization.
+
+Provide:
+
+- Last 24 Hours
+- Last 7 Days
+- Last 30 Days
+
+The chart must use actual incident/risk timestamps.
+
+Show:
+- risk trend
+- incident volume where useful
+- peak risk
+
+Tooltips must be readable and must NOT cover important graph information.
+
+Make the chart work in:
+- Light mode
+- Dark mode
+
+Do not use fake/generated chart points.
+
+==================================================
+M4 TASK 5 — CRITICAL INCIDENT PANEL
+==================================================
+
+Add a prominent "Critical Incidents" section to the Overview.
+
+Display actual incidents in a table/card list:
+
+- Incident ID
+- Threat
+- Affected Asset
+- Risk Score
+- Priority/Risk Level
+- Status
+- Investigate button
+
+Sort by highest risk first.
+
+Clicking an incident must open the existing Incident Investigation experience.
+
+Example:
+
+Overview
+   ↓
+INC-741
+   ↓
+Incident Investigation
+
+Do NOT create a second investigation system.
+
+==================================================
+M4 TASK 6 — THREAT INVESTIGATION
+==================================================
+
+Reuse and polish the existing M3 Incident Investigation screen.
+
+It already contains much of the required functionality.
+
+Ensure the investigation view clearly presents:
+
+- Incident ID
+- Threat Type
+- Risk Score
+- Risk Level
+- Priority
+- ML Confidence
+- Affected Asset
+- Source IP
+- User
+- IOC status
+- MITRE technique
+- CVE
+- CVSS
+- Related Events
+
+Then show:
+
+### WHY IS THIS INCIDENT RISKY?
+
+Use existing data-backed explainability.
+
+Possible reasons may include:
+- Critical asset
+- High ML confidence
+- Malicious IOC
+- High CVSS
+- Multiple related events
+- High threat severity
+- After-hours activity
+- Multiple failed login attempts
+
+ONLY display a reason when the underlying data supports it.
+
+Do not generate unsupported explanations.
+
+==================================================
+M4 TASK 7 — RISK FACTOR BREAKDOWN
+==================================================
+
+Keep the existing transparent risk-factor breakdown.
+
+Show the actual contribution of:
+
+- Threat/Anomaly Severity
+- ML Confidence
+- Asset Criticality
+- Vulnerability Exposure
+- Threat Intelligence
+- Existing correlation/multi-stage contribution where implemented
+
+Show:
+- normalized factor score
+- weight
+- contribution to final risk
+
+Make the formula understandable.
+
+Do not change the M3 risk calculation unnecessarily.
+
+IMPORTANT:
+The Dynamic Risk Weight Configuration currently has a UI state showing:
+
+0% + 0% + 0% + 0% + 0% = Invalid
+
+This MUST NOT be left in the final demo state.
+
+Ensure the default configuration correctly displays the actual M3 defaults:
+
+25%
+25%
+20%
+20%
+10%
+
+Total = 100%
+
+The UI and backend terminology must match the actual implemented risk engine.
+
+Do not rename factors merely for appearance if that would make the formula inaccurate.
+
+==================================================
+M4 TASK 8 — ATTACK CHAIN
+==================================================
+
+Reuse the existing M3 Attack Chain & Inspector.
+
+Ensure the final workflow is:
+
+Incident
+ ↓
+Attack Chain
+ ↓
+Attack Stage
+ ↓
+Underlying Event
+
+Display actual:
+- Event ID
+- Timestamp
+- Source
+- Destination if available
+- User
+- MITRE Technique
+- Risk
+- Stage
+
+Use "Possible Attack Chain" wording.
+
+Do not claim that correlation proves an attack occurred.
+
+Clicking a stage/node should show its actual telemetry.
+
+==================================================
+M4 TASK 9 — MITRE ATT&CK INTELLIGENCE
+==================================================
+
+Improve the existing MITRE section if required.
+
+Display:
+
+- Technique ID
+- Technique Name
+- Tactic
+- Event Count
+- Associated Risk
+
+Use actual M1/M3 MITRE mappings.
+
+Make techniques clickable where practical.
+
+Do not invent MITRE techniques.
+
+==================================================
+M4 TASK 10 — VULNERABILITY INTELLIGENCE
+==================================================
+
+Improve the existing vulnerability section.
+
+Display:
+
+- CVE
+- Affected Asset
+- CVSS
+- Severity
+- Status
+
+Also show summary values:
+- Critical CVEs
+- High CVEs
+- Medium CVEs
+- Affected Assets
+
+Use existing vulnerability data.
+
+Do not create fake CVEs.
+
+==================================================
+M4 TASK 11 — IOC INTELLIGENCE
+==================================================
+
+Improve the existing Threat Intelligence area.
+
+Where the existing data supports it, display:
+
+- IOC
+- IOC Type
+- Status
+- Threat Count
+- Affected Assets
+- First Seen
+- Last Seen
+- Threat Source/Feed
+
+Possible IOC types:
+- IP
+- Domain
+- URL
+- Hash
+- Email
+
+ONLY display types/fields actually available in the existing data.
+
+Clearly distinguish:
+- Malicious
+- Suspicious
+- No Match
+
+Do not fabricate external threat intelligence.
+
+==================================================
+M4 TASK 12 — ADVANCED FILTERING
+==================================================
+
+Integrate a comprehensive filtering system.
+
+Filters should include where supported:
+
+- Severity
+- Risk Level
+- Threat Type
+- Asset
+- Department
+- MITRE Technique
+- CVE
+- IOC Status
+- Incident Status
+- Date Range
+
+Example:
+
+"Show Critical threats affecting Production assets during the last 7 days."
+
+Filtering should update the displayed results correctly.
+
+Reuse the existing M3 priority-queue filtering rather than creating duplicate systems.
+
+==================================================
+M4 TASK 13 — DRILL-DOWN ANALYSIS
+==================================================
+
+Make charts and dashboard components interactive.
+
+Desired workflow:
+
+Dashboard
+ ↓
+Threat Category / Risk Category
+ ↓
+Filtered Incidents
+ ↓
+Incident Investigation
+ ↓
+Attack Chain
+ ↓
+Related Event
+
+For example:
+
+Click "Brute Force"
+ ↓
+Show relevant incidents
+ ↓
+Click INC-741
+ ↓
+Show investigation
+ ↓
+Open related event
+
+Do not create fake counts just to enable drill-down.
+
+==================================================
+M4 TASK 14 — SECURITY RECOMMENDATIONS
+==================================================
+
+Reuse the existing M3 recommendation system.
+
+Display recommendations clearly inside Incident Investigation.
+
+Example:
+
+Recommended Actions
+
+1. Investigate source IP
+2. Review authentication logs
+3. Investigate affected account
+4. Review related telemetry
+5. Escalate to SOC lead if necessary
+
+Recommendations must remain:
+"Analyst Guidance Only — Not Automatically Applied"
+
+Do NOT implement automatic:
+- IP blocking
+- account deletion
+- malware deletion
+- process termination
+- firewall modification
+- destructive containment
+
+==================================================
+M4 TASK 15 — INCIDENT MANAGEMENT
+==================================================
+
+Keep the existing incident workflow:
+
+Open
+ ↓
+Investigating
+ ↓
+Resolved
+
+or:
+
+Open
+ ↓
+False Positive
+
+Status changes must:
+- persist to MongoDB
+- remain after page refresh
+- appear in audit history
+
+Changing status must NOT automatically modify:
+- M2 prediction
+- ML confidence
+- anomaly score
+- original risk calculation
+
+==================================================
+M4 TASK 16 — ANALYST FEEDBACK
+==================================================
+
+Keep the existing feedback mechanism.
+
+Allow:
+
+True Positive
+False Positive
+Needs Review
+
+Store:
+- incident/event ID
+- original prediction
+- analyst feedback
+- analyst
+- timestamp
+
+Do NOT automatically retrain the model.
+
+Clearly distinguish:
+AI Prediction
+vs
+Analyst Feedback
+
+==================================================
+M4 TASK 17 — SECURITY POSTURE SCORE
+==================================================
+
+Add a new overall "Security Posture" metric to the main Overview.
+
+Example presentation:
+
+SECURITY POSTURE
+72 / 100
+GOOD
+
+IMPORTANT:
+Do NOT hard-code 72.
+
+Calculate it from actual security conditions.
+
+Use reasonable existing project factors such as:
+- Critical vulnerabilities
+- Active incidents
+- High-risk incidents
+- Unresolved threats
+- High-risk assets
+- Threat volume
+
+Document the calculation clearly.
+
+This score is a high-level security posture indicator, NOT a mathematically proven probability.
+
+Display an understandable status such as:
+- Good
+- Moderate
+- Needs Attention
+- Critical
+
+based on clearly documented thresholds.
+
+==================================================
+M4 TASK 18 — EXECUTIVE SECURITY OVERVIEW
+==================================================
+
+Add an optional separate "Executive Overview" page if it can be implemented without destabilizing the existing project.
+
+Keep it simple.
+
+Display:
+
+Security Posture
+Critical Threats
+Open Incidents
+Critical Vulnerabilities
+Affected Assets
+Threat Trend
+
+Charts:
+- Threat Trend
+- Risk Distribution
+- Top Threat Categories
+- Top Vulnerable Assets
+
+The executive page should be a simplified summary.
+
+Do not duplicate the entire SOC analyst interface.
+
+==================================================
+M4 TASK 19 — REPORT GENERATION
+==================================================
+
+ONLY implement this if the core M4 functionality is completely stable.
+
+Add a "Generate Security Report" feature.
+
+Prefer a simple CSV export or a lightweight report.
+
+If PDF is implemented, include:
+
+- Report Date
+- Total Events
+- Detected Threats
+- Critical Incidents
+- High-Risk Assets
+- Top Threats
+- MITRE Techniques
+- Vulnerabilities
+- Attack Chains
+- Recommendations
+
+Do not spend significant development time on report formatting before all core M4 requirements are complete.
+
+==================================================
+M4 TASK 20 — UI POLISH
+==================================================
+
+Make the final application look like a professional SOC platform.
+
+Keep:
+- SOC ThreatDetect AI branding
+- clean sidebar
+- clean top navigation
+- professional cards
+- readable charts
+- strong hierarchy
+- responsive layout
+- dark/light mode
+
+Remove:
+- unnecessary milestone labels
+- duplicated page titles
+- duplicated refresh buttons
+- debug text
+- mock configuration information
+- unnecessary decorative elements
+
+Do not prioritize animations over functionality.
+
+The interface should feel like:
+"Professional Security Operations Center Dashboard"
+
+rather than:
+"Student project with many widgets."
+
+==================================================
+M4 TASK 21 — API INTEGRATION
+==================================================
+
+Preserve and use the existing M3 APIs:
+
+POST /api/v1/risk/calculate
+GET  /api/v1/risk/high
+GET  /api/v1/risk/summary
+GET  /api/v1/incidents
+GET  /api/v1/incidents/{incident_id}
+GET  /api/v1/attack-chains
+GET  /api/v1/recommendations/{incident_id}
+
+Do not break their existing contracts.
+
+The M4 frontend should consume backend API responses rather than hardcoded values.
+
+Where existing APIs are insufficient for M4 dashboard aggregation, add minimal new endpoints only when necessary.
+
+Do not create unnecessary APIs.
+
+==================================================
+M4 TASK 22 — DATABASE
+==================================================
+
+Continue using the existing MongoDB setup:
+
+MongoDB
+Database: soc_threatdetect
+Collection: incidents
+
+Do not delete or recreate the database.
+
+Do not migrate to another database.
+
+Preserve existing incidents.
+
+If new M4 fields are required, add them backward-compatibly.
+
+Existing incidents must continue to load.
+
+==================================================
+M4 TASK 23 — PERFORMANCE / AUTO REFRESH
+==================================================
+
+The current application already has API connection status and automatic refresh.
+
+Keep this functionality.
+
+Ensure auto-refresh:
+- does not create duplicate requests unnecessarily
+- does not reset filters unexpectedly
+- does not interrupt an active investigation
+- does not overwrite unsaved analyst feedback
+- updates dashboard statistics correctly
+
+Manual Refresh should continue working.
+
+==================================================
+M4 TASK 24 — TESTING
+==================================================
+
+Testing is mandatory.
+
+Before changes:
+- Run existing M1/M2/M3 regression tests.
+- Record the results.
+
+After changes:
+- Run the same tests again.
+
+Verify:
+
+M1:
+- 1800 security events remain available
+- database verification passes
+- cleaning verification passes
+
+M2:
+- ML tests pass
+- prediction APIs work
+- anomaly APIs work
+- threat summary works
+- model performance endpoint works
+
+M3:
+- risk calculation works
+- risk summary works
+- high-risk API works
+- incidents API works
+- incident detail works
+- attack-chain API works
+- recommendations API works
+- MongoDB is primary persistence
+- existing incidents remain accessible
+
+M4:
+- Overview loads
+- KPI values are dynamic
+- charts display real data
+- risk trend works
+- critical incident panel works
+- dashboard → incident navigation works
+- incident → attack chain works
+- attack chain → event inspection works
+- threat intelligence loads
+- vulnerability intelligence loads
+- filters work
+- status changes persist
+- analyst feedback persists
+- security posture calculation works
+- dark mode works
+- light mode works
+- auto refresh works
+- no blank pages
+- no broken routes
+- no console errors
+
+==================================================
+M4 TASK 25 — FINAL END-TO-END DEMO TEST
+==================================================
+
+Perform a complete browser flow as an analyst:
+
+1. Login
+2. Open Overview
+3. Verify current security posture
+4. Verify KPI cards
+5. Verify threat/risk charts
+6. Find a Critical incident
+7. Open the incident
+8. Inspect risk score
+9. Inspect explainability
+10. Inspect risk-factor breakdown
+11. Open Threat/Vulnerability Intelligence
+12. Open Attack Chain
+13. Inspect a related event
+14. View recommendations
+15. Change status
+16. Add analyst feedback
+17. Verify persistence after refresh
+18. Return to Overview
+19. Verify updated status/counts
+
+Use an actual existing incident such as INC-741 or another valid incident returned by the API.
+
+Do not invent demo data.
+
+==================================================
+M4 FINAL ARCHITECTURE
+==================================================
+
+The final conceptual architecture should be:
+
+                    SECURITY DATA
+                         │
+                         ▼
+                M1 DATA PIPELINE
+                         │
+                         ▼
+                  M2 ML DETECTION
+                         │
+                         ▼
+                   M3 RISK ENGINE
+                         │
+            ┌────────────┼────────────┐
+            ▼            ▼            ▼
+       Correlation   Intelligence   Explainability
+            │            │            │
+            └────────────┼────────────┘
+                         ▼
+                  INCIDENT LAYER
+                         │
+                         ▼
+                M4 SOC DASHBOARD
+                         │
+        ┌────────────────┼─────────────────┐
+        ▼                ▼                 ▼
+   SOC Overview     Investigation     Intelligence
+        │                │                 │
+        ▼                ▼                 ▼
+   Risk Trends      Attack Chain      MITRE/CVE/IOC
+        │                │
+        ▼                ▼
+ Critical Queue      Recommendations
+                         │
+                         ▼
+                  Analyst Workflow
+                         │
+                         ▼
+                Status + Feedback
+                         │
+                         ▼
+                     MongoDB
+
+==================================================
+PRIORITY ORDER
+==================================================
+
+Implement in this order:
+
+PHASE 1 — Integration
+- Audit existing M1/M2/M3 APIs
+- Remove/identify hardcoded dashboard data
+- Ensure all modules connect correctly
+
+PHASE 2 — Main Overview
+- KPI cards
+- threat distributions
+- risk trend
+- critical incident panel
+
+PHASE 3 — End-to-End Navigation
+- Overview → Incident
+- Incident → Attack Chain
+- Attack Chain → Event
+- Incident → Intelligence
+- Incident → Recommendations
+
+PHASE 4 — M4 Analytics
+- advanced filters
+- drill-down
+- security posture
+
+PHASE 5 — Executive View
+- only if stable
+
+PHASE 6 — Report
+- only if sufficient time
+
+PHASE 7 — Final UI polish
+- dark/light
+- spacing
+- typography
+- duplicate controls
+- responsive behavior
+
+PHASE 8 — Full regression and browser testing
+
+==================================================
+VERY IMPORTANT FINAL REQUIREMENT
+==================================================
+
+Do not add features simply because they make the UI look more advanced.
+
+The M4 goal is:
+
+M1 Data
+   ↓
+M2 Detection
+   ↓
+M3 Risk + Investigation
+   ↓
+M4 FINAL INTEGRATED SOC PLATFORM
+
+The finished application must demonstrate a complete working flow from raw security events to ML detection, risk prioritization, incident investigation, attack-chain analysis, intelligence, recommendations and analyst workflow.
+
+Before declaring M4 complete, provide a final implementation report containing:
+
+1. Files changed
+2. Features already present and reused
+3. New M4 features added
+4. APIs used/added
+5. Database changes
+6. Security posture formula
+7. Testing performed
+8. M1 regression result
+9. M2 regression result
+10. M3 regression result
+11. M4 browser/E2E result
+12. Any limitations
+13. Confirmation that no mock/hardcoded security statistics were introduced
+
+Do NOT claim M4 is complete unless the end-to-end browser flow actually works.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-13T18:45:06+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\.env (LANGUAGE_UNSPECIFIED)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\scratch\test_status_update.py (LANGUAGE_PYTHON)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\scratch\test_m3_api_contract.py (LANGUAGE_PYTHON)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\backend\routes\intelligence_routes.py (LANGUAGE_PYTHON)
+- c:\Users\Prams\Desktop\SOC-Threat-Detection\backend\services\intelligence_service.py (LANGUAGE_PYTHON)
+</ADDITIONAL_METADATA>

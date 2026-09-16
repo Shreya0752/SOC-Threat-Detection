@@ -1,0 +1,317 @@
+function IncidentInvestigationModal({ incidentId, onClose, onStatusUpdated, onSelectEvent }) {
+      const [incident, setIncident] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [updatingStatus, setUpdatingStatus] = useState(false);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        if (!incidentId) return;
+        let isMounted = true;
+        setLoading(true);
+        setError(null);
+
+        fetchIncidentById(incidentId)
+          .then(data => {
+            if (isMounted) {
+              if (data && !data.error) setIncident(data);
+              else setError(data?.error || `No incident details found for ${incidentId}`);
+              setLoading(false);
+            }
+          })
+          .catch(err => {
+            if (isMounted) {
+              setError(err.message || "Failed to load incident investigation details");
+              setLoading(false);
+            }
+          });
+
+        return () => { isMounted = false; };
+      }, [incidentId]);
+
+      const handleStatusChange = async (newStatus) => {
+        setUpdatingStatus(true);
+        try {
+          await updateIncidentStatusApi(incidentId, newStatus);
+          setIncident(prev => ({ ...prev, status: newStatus }));
+          if (onStatusUpdated) onStatusUpdated(incidentId, newStatus);
+        } catch (err) {
+          alert("Error updating status: " + err.message);
+        } finally {
+          setUpdatingStatus(false);
+        }
+      };
+
+      if (!incidentId) return null;
+
+      const riskScore = incident?.risk_score || 0;
+      const priority = incident?.priority || 'Low';
+      const attackChain = incident?.attack_chain || [];
+      const factors = incident?.risk_factors || {};
+      const explainability = incident?.explainability || [];
+      const recommendations = incident?.recommendation || [];
+      const detailedEvents = incident?.detailed_events || [];
+
+      return (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', width: '92vw', maxWidth: '850px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)', border: '1px solid var(--border-color)', padding: '1.75rem', color: 'var(--text-main)' }}>
+            
+            {/* Header */}
+            <div style={{ position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.85rem', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>M3 Incident Investigation</span>
+                  <span className={`badge-risk-${priority.toLowerCase()}`}>{priority}</span>
+                </div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+                  {incident?.incident_id}: {incident?.threat_type || 'Security Incident'}
+                </h2>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Status:</span>
+                  <select
+                    className="filter-select"
+                    value={incident?.status || 'Open'}
+                    disabled={updatingStatus}
+                    onChange={e => handleStatusChange(e.target.value)}
+                    style={{ fontWeight: 600 }}
+                  >
+                    <option value="Open">Open</option>
+                    <option value="Investigating">Investigating</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="False Positive">False Positive</option>
+                  </select>
+                </div>
+                <button onClick={onClose} style={{ background: 'var(--bg-primary)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-muted)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-subtle)' }}>🔄 Loading telemetry, correlation graphs, and attack chain...</div>
+            ) : error ? (
+              <div style={{ padding: '1rem', background: 'var(--critical-bg)', borderRadius: '8px', color: 'var(--critical)', fontSize: '0.9rem' }}>⚠️ {error}</div>
+            ) : (
+              <div>
+                {/* Top Metrics Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                  <div style={{ background: riskScore >= 81 ? 'var(--critical-bg)' : riskScore >= 61 ? 'var(--high-bg)' : 'var(--medium-bg)', padding: '0.85rem', borderRadius: '10px', border: `1px solid ${riskScore >= 81 ? 'var(--critical)' : 'var(--high)'}` }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Risk Score</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: riskScore >= 81 ? 'var(--critical)' : riskScore >= 61 ? 'var(--high)' : 'var(--text-main)', marginTop: '0.1rem' }}>
+                      {riskScore} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>/ 100</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Target Asset</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+                      {incident?.asset_id || 'Unknown Asset'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>Criticality: {factors?.asset_criticality?.level || 'Standard'}</div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Target Identity</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+                      {incident?.affected_user || 'Unknown User'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>MITRE: {incident?.mitre_technique || 'T1000'}</div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Correlated Events</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.2rem' }}>
+                      {incident?.event_ids?.length || 1} Events
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{formatToIST(incident?.created_at)}</div>
+                  </div>
+                </div>
+
+                {/* 1. Attack Chain Visualization (HIGH-PRIORITY FEATURE) */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>
+                      ⚡ Correlated Attack Chain Flow
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Chronological Kill-Chain Stages</span>
+                  </div>
+
+                  {attackChain.length > 0 ? (
+                    <div className="attack-chain-flow">
+                      {attackChain.map((node, nIdx) => (
+                        <React.Fragment key={nIdx}>
+                          <div className={`attack-chain-node ${String(node.severity).toLowerCase()}-node`}>
+                            <div className="attack-chain-stage-header">
+                              <span className="attack-chain-stage-name">{node.stage || 'Attack Stage'}</span>
+                              <span style={{ fontSize: '0.65rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '0.1rem 0.35rem', borderRadius: '4px', color: 'var(--text-muted)', fontWeight: 600 }}>{node.mitre_id}</span>
+                            </div>
+                            <div className="attack-chain-event-type" title={node.event_type}>{node.event_type}</div>
+                            <div className="attack-chain-meta">
+                              <div><strong>Tech:</strong> {node.technique_name || 'Generic Technique'}</div>
+                              <div><strong>Time:</strong> {formatToIST(node.timestamp)}</div>
+                              <div><strong>Severity:</strong> <span className={`badge badge-${String(node.severity).toLowerCase()}`}>{node.severity}</span></div>
+                            </div>
+                          </div>
+                          {nIdx < attackChain.length - 1 && (
+                            <div className="attack-chain-arrow">➔</div>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '0.85rem', background: 'var(--bg-secondary)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-subtle)' }}>
+                      Single isolated security alert. No multi-stage correlation detected.
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Risk Explainability & Factor Contribution Breakdown */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  {/* Checklist: Why is this high risk? */}
+                  <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1rem' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.6rem' }}>
+                      🔍 Why is this high risk? (Data-Backed Explainability)
+                    </h4>
+                    {explainability && explainability.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                        {explainability.map((reason, rIdx) => (
+                          <div key={rIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                            <span style={{ color: 'var(--success)', fontWeight: 800 }}>✓</span>
+                            <span>{reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>Standard risk parameters recorded.</div>
+                    )}
+                  </div>
+
+                  {/* Factor Contribution Weights */}
+                  <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1rem' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.6rem' }}>
+                      📊 Transparent Risk Factor Breakdown
+                    </h4>
+                    <div className="factor-bar-container">
+                      <div className="factor-bar-row">
+                        <div className="factor-bar-labels">
+                          <span>Threat Severity (25%)</span>
+                          <strong>{factors?.threat_severity?.contribution ?? 0} pts ({factors?.threat_severity?.raw ?? 0}/100)</strong>
+                        </div>
+                        <div className="factor-bar-track">
+                          <div className="factor-bar-fill" style={{ width: `${factors?.threat_severity?.raw ?? 0}%`, background: 'var(--critical)' }} />
+                        </div>
+                      </div>
+
+                      <div className="factor-bar-row">
+                        <div className="factor-bar-labels">
+                          <span>ML Confidence (25%)</span>
+                          <strong>{factors?.ml_confidence?.contribution ?? 0} pts ({factors?.ml_confidence?.raw ?? 0}%)</strong>
+                        </div>
+                        <div className="factor-bar-track">
+                          <div className="factor-bar-fill" style={{ width: `${factors?.ml_confidence?.raw ?? 0}%`, background: 'var(--primary)' }} />
+                        </div>
+                      </div>
+
+                      <div className="factor-bar-row">
+                        <div className="factor-bar-labels">
+                          <span>Asset Criticality (20%)</span>
+                          <strong>{factors?.asset_criticality?.contribution ?? 0} pts ({factors?.asset_criticality?.level || 'Low'})</strong>
+                        </div>
+                        <div className="factor-bar-track">
+                          <div className="factor-bar-fill" style={{ width: `${factors?.asset_criticality?.raw ?? 0}%`, background: 'var(--high)' }} />
+                        </div>
+                      </div>
+
+                      <div className="factor-bar-row">
+                        <div className="factor-bar-labels">
+                          <span>Vulnerability Exposure (20%)</span>
+                          <strong>{factors?.vulnerability_exposure?.contribution ?? 0} pts ({factors?.vulnerability_exposure?.description || 'None'})</strong>
+                        </div>
+                        <div className="factor-bar-track">
+                          <div className="factor-bar-fill" style={{ width: `${factors?.vulnerability_exposure?.raw ?? 0}%`, background: 'var(--medium)' }} />
+                        </div>
+                      </div>
+
+                      <div className="factor-bar-row">
+                        <div className="factor-bar-labels">
+                          <span>Threat Intelligence (10%)</span>
+                          <strong>{factors?.threat_intelligence?.contribution ?? 0} pts</strong>
+                        </div>
+                        <div className="factor-bar-track">
+                          <div className="factor-bar-fill" style={{ width: `${factors?.threat_intelligence?.raw ?? 0}%`, background: 'var(--success)' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Response Recommendations Panel */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1.1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>
+                      🛡️ Recommended Response Playbook
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontStyle: 'italic' }}>Analyst Guidance Only — Not Automatically Applied</span>
+                  </div>
+                  <div className="rec-card-list">
+                    {recommendations.map((step, sIdx) => (
+                      <div key={sIdx} className="rec-card-item">
+                        <div className="rec-step-number">{sIdx + 1}</div>
+                        <div style={{ flex: 1 }}>{step}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. Correlated Security Events List */}
+                {detailedEvents.length > 0 && (
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                      📋 Contributing Security Events ({detailedEvents.length})
+                    </h4>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="custom-table">
+                        <thead>
+                          <tr>
+                            <th>Event ID</th>
+                            <th>Event Type</th>
+                            <th>Timestamp</th>
+                            <th>Source IP</th>
+                            <th>Severity</th>
+                            <th>M2 Prediction</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailedEvents.map(evt => (
+                            <tr key={evt.event_id}>
+                              <td><strong>{evt.event_id}</strong></td>
+                              <td>{evt.event_type}</td>
+                              <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatToIST(evt.timestamp)}</td>
+                              <td>{evt.source_ip}</td>
+                              <td><span className={`badge badge-${String(evt.severity).toLowerCase()}`}>{evt.severity}</span></td>
+                              <td>
+                                <span style={{ color: evt.m2_prediction === 'Anomalous' ? 'var(--critical)' : 'var(--success)', fontWeight: 600 }}>
+                                  {evt.m2_prediction}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Modal Footer */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                  <button onClick={onClose} style={{ background: 'var(--primary)', color: '#FFFFFF', border: 'none', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
+                    Close Investigation
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    

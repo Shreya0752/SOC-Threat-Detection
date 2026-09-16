@@ -6,11 +6,9 @@ from werkzeug.security import generate_password_hash
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Ensure project root is in sys.path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Load environment variables from .env
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from backend.models.database_models import Base, SecurityEvent, CleaningStats, User, ThreatPrediction
@@ -34,12 +32,14 @@ def seed_demo_user(db):
     """Seeds or updates the default demo SOC Analyst account with a hashed password."""
     username = os.getenv("SOC_ADMIN_USERNAME", "analyst_admin")
     raw_password = os.getenv("SOC_ADMIN_PASSWORD", "soc12345")
+    email = os.getenv("SOC_ADMIN_EMAIL", "analyst_admin@threatdetect.ai")
     hashed_password = generate_password_hash(raw_password)
 
     user = db.query(User).filter(User.username == username).first()
     if not user:
         user = User(
             username=username,
+            email=email,
             password_hash=hashed_password,
             role="Tier 2 Security Analyst"
         )
@@ -47,6 +47,8 @@ def seed_demo_user(db):
     else:
         user.password_hash = hashed_password
         user.role = "Tier 2 Security Analyst"
+        if not user.email or user.email != email:
+            user.email = email
     db.commit()
     print(f"[Database] Demo user '{username}' seeded successfully with secure password hash.")
 
@@ -57,6 +59,14 @@ def init_db(force_reseed=False):
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     
     Base.metadata.create_all(bind=engine)
+
+    # Ensure users table schema contains email column
+    with engine.connect() as conn:
+        cursor = conn.exec_driver_sql("PRAGMA table_info(users)")
+        cols = [row[1] for row in cursor.fetchall()]
+        if cols and "email" not in cols:
+            conn.exec_driver_sql("ALTER TABLE users ADD COLUMN email VARCHAR(100) DEFAULT NULL")
+            conn.commit()
 
     # Ensure threat_predictions table schema contains explanation column
     with engine.connect() as conn:

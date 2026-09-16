@@ -41,7 +41,9 @@ class EventService:
                     func.lower(SecurityEvent.device_name).like(func.lower(search_pattern)),
                     func.lower(SecurityEvent.asset_name).like(func.lower(search_pattern)),
                     func.lower(SecurityEvent.source_ip).like(func.lower(search_pattern)),
-                    func.lower(SecurityEvent.event_type).like(func.lower(search_pattern))
+                    func.lower(SecurityEvent.destination_ip).like(func.lower(search_pattern)),
+                    func.lower(SecurityEvent.event_type).like(func.lower(search_pattern)),
+                    func.lower(SecurityEvent.severity).like(func.lower(search_pattern))
                 )
             )
 
